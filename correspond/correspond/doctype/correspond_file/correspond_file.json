@@ -8,12 +8,18 @@
  "field_order": [
   "file_number",
   "subject",
+  "file_owner",
   "current_custodian",
   "department",
   "is_attached",
   "attached_to",
   "movement_log",
-  "attached_files"
+  "attached_files",
+  "file_viewer_tab_tab",
+  "notings_section_section",
+  "notings_display",
+  "column_break_qvba",
+  "dak_display"
  ],
  "fields": [
   {
@@ -67,12 +73,41 @@
    "fieldtype": "Table",
    "label": "Attached Files",
    "options": "Attached Files Log"
+  },
+  {
+   "fieldname": "file_owner",
+   "fieldtype": "Link",
+   "label": "File Owner",
+   "options": "User"
+  },
+  {
+   "fieldname": "file_viewer_tab_tab",
+   "fieldtype": "Tab Break",
+   "label": "File Viewer Tab"
+  },
+  {
+   "fieldname": "notings_section_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notings_display",
+   "fieldtype": "HTML",
+   "label": "Notings Display"
+  },
+  {
+   "fieldname": "column_break_qvba",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dak_display",
+   "fieldtype": "HTML",
+   "label": "Dak Display"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-12 04:52:56.168911",
+ "modified": "2026-08-12 05:22:15.798982",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond File",
