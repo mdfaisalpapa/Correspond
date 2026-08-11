@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-08-12 04:46:37.727869",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "timestamp",
+  "moved_from",
+  "moved_to",
+  "action",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
+   "label": "Timestamp"
+  },
+  {
+   "fieldname": "moved_from",
+   "fieldtype": "Link",
+   "label": "Moved From",
+   "options": "User"
+  },
+  {
+   "fieldname": "moved_to",
+   "fieldtype": "Link",
+   "label": "Moved To",
+   "options": "User"
+  },
+  {
+   "fieldname": "action",
+   "fieldtype": "Select",
+   "label": "Action",
+   "options": "Forwarded\nPulled\nReturned"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Data",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-12 04:48:41.323548",
+ "modified_by": "Administrator",
+ "module": "Correspond",
+ "name": "File Movement Log",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

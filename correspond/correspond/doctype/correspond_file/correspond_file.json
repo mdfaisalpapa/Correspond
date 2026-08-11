@@ -1,0 +1,99 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-08-12 04:42:39.341128",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "file_number",
+  "subject",
+  "current_custodian",
+  "department",
+  "is_attached",
+  "attached_to",
+  "movement_log",
+  "attached_files"
+ ],
+ "fields": [
+  {
+   "fieldname": "file_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "File Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Subject",
+   "reqd": 1
+  },
+  {
+   "fieldname": "current_custodian",
+   "fieldtype": "Link",
+   "label": "Current Custodian",
+   "options": "User"
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_attached",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Is Attached"
+  },
+  {
+   "fieldname": "attached_to",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Attached To",
+   "options": "Correspond File"
+  },
+  {
+   "fieldname": "movement_log",
+   "fieldtype": "Table",
+   "label": "Movement Log",
+   "options": "File Movement Log"
+  },
+  {
+   "fieldname": "attached_files",
+   "fieldtype": "Table",
+   "label": "Attached Files",
+   "options": "Attached Files Log"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-12 04:52:56.168911",
+ "modified_by": "Administrator",
+ "module": "Correspond",
+ "name": "Correspond File",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
