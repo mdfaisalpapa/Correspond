@@ -1,0 +1,51 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-03-12 11:14:53.930861",
+  "name": "Approve",
+  "workflow_action_name": "Approve"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-03-12 11:14:53.932458",
+  "name": "Reject",
+  "workflow_action_name": "Reject"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-03-12 11:14:53.933252",
+  "name": "Review",
+  "workflow_action_name": "Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-12 17:43:02.142574",
+  "name": "Diarize",
+  "workflow_action_name": "Diarize"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-12 17:43:23.295956",
+  "name": "Mark to Officer",
+  "workflow_action_name": "Mark to Officer"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-12 17:45:17.184606",
+  "name": "Put Up on File",
+  "workflow_action_name": "Put Up on File"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-12 17:45:34.262352",
+  "name": "Close Dak",
+  "workflow_action_name": "Close Dak"
+ }
+]

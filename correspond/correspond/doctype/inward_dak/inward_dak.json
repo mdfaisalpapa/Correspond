@@ -1,0 +1,178 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-08-12 16:44:58.907248",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_ijku",
+  "amended_from",
+  "receipt_details_section",
+  "receipt_date",
+  "receipt_mode",
+  "external_sender_details_section",
+  "sender_name",
+  "sender_designation",
+  "sender_organization",
+  "sender_address",
+  "document_details_section",
+  "external_reference_number",
+  "external_reference_date",
+  "subject",
+  "category",
+  "attachments",
+  "routing_and_action_section",
+  "assigned_to",
+  "remarks",
+  "linked_files",
+  "status"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_ijku",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Inward Dak",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "receipt_details_section",
+   "fieldtype": "Section Break",
+   "label": "Receipt Details"
+  },
+  {
+   "default": "Today",
+   "fieldname": "receipt_date",
+   "fieldtype": "Date",
+   "label": "Receipt Date"
+  },
+  {
+   "fieldname": "receipt_mode",
+   "fieldtype": "Select",
+   "label": "Receipt Mode",
+   "options": "By Hand\nOrdinary Post\nSpeed Post\nCourier\nEmail\nOther"
+  },
+  {
+   "fieldname": "external_sender_details_section",
+   "fieldtype": "Section Break",
+   "label": "External Sender Details"
+  },
+  {
+   "fieldname": "sender_name",
+   "fieldtype": "Data",
+   "label": "Sender Name"
+  },
+  {
+   "fieldname": "sender_designation",
+   "fieldtype": "Data",
+   "label": "Sender Designation"
+  },
+  {
+   "fieldname": "sender_organization",
+   "fieldtype": "Data",
+   "label": "Sender Organization"
+  },
+  {
+   "fieldname": "sender_address",
+   "fieldtype": "Small Text",
+   "label": "Sender Address"
+  },
+  {
+   "fieldname": "document_details_section",
+   "fieldtype": "Section Break",
+   "label": "Document Details"
+  },
+  {
+   "fieldname": "external_reference_number",
+   "fieldtype": "Data",
+   "label": "External Reference Number"
+  },
+  {
+   "fieldname": "external_reference_date",
+   "fieldtype": "Date",
+   "label": "External Reference Date"
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Text",
+   "label": "Subject"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "General\nConfidential\nUrgent\nCourt Matter\nRTI"
+  },
+  {
+   "fieldname": "attachments",
+   "fieldtype": "Attach",
+   "label": "Attachments"
+  },
+  {
+   "fieldname": "routing_and_action_section",
+   "fieldtype": "Section Break",
+   "label": "Routing and Action"
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "label": "Assigned To",
+   "options": "User"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "linked_files",
+   "fieldtype": "Table",
+   "label": "Linked FIles",
+   "options": "Inward Dak Linked File"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nDiarized\nMarked\nIn Process\nClosed"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-12 17:33:51.042972",
+ "modified_by": "Administrator",
+ "module": "Correspond",
+ "name": "Inward Dak",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

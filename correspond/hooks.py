@@ -268,5 +268,8 @@ fixtures = [
         "filters": [
             ["module", "=", "Correspond"]
         ]
-    }
+    },
+    "Workflow",
+    "Workflow State",
+    "Workflow Action Master"
 ]
