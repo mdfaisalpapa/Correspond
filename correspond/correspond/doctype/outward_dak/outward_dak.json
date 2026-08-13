@@ -64,13 +64,13 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Draft\nApproved\nDispatched"
+   "options": "Draft\nPending Approval\nApproved\nDispatched\nCancelled"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-13 05:35:09.777437",
+ "modified": "2026-08-13 05:41:25.600560",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Outward Dak",
