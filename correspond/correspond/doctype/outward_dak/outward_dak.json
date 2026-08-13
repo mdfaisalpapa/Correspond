@@ -9,6 +9,7 @@
   "primary_file",
   "sender",
   "receiver",
+  "receiver_email",
   "subject",
   "reference",
   "letter_body",
@@ -20,11 +21,14 @@
  ],
  "fields": [
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "subject",
    "fieldtype": "Data",
-   "label": "Subject"
+   "label": "Subject",
+   "reqd": 1
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "linked_files",
    "fieldtype": "Table",
    "label": "Linked Files",
@@ -38,26 +42,34 @@
    "options": "User"
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "receiver",
    "fieldtype": "Small Text",
-   "label": "Receiver"
+   "label": "Receiver",
+   "reqd": 1
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "reference",
    "fieldtype": "Data",
    "label": "Reference"
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "letter_body",
    "fieldtype": "Text Editor",
-   "label": "Letter Body"
+   "label": "Letter Body",
+   "reqd": 1
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "signature",
    "fieldtype": "Data",
-   "label": "Signature"
+   "label": "Signature",
+   "reqd": 1
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "attachments",
    "fieldtype": "Attach",
    "label": "Attachments"
@@ -81,6 +93,7 @@
    "search_index": 1
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "primary_file",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -88,13 +101,19 @@
    "options": "Correspond File",
    "reqd": 1,
    "set_only_once": 1
+  },
+  {
+   "fieldname": "receiver_email",
+   "fieldtype": "Data",
+   "label": "Receiver Email",
+   "options": "Email"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-13 06:59:21.949706",
+ "modified": "2026-08-13 13:42:05.903931",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Outward Dak",
@@ -113,6 +132,7 @@
    "write": 1
   }
  ],
+ "quick_entry": 1,
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
  "sort_field": "creation",
