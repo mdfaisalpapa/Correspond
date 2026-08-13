@@ -13,9 +13,9 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
 
-class IntegrationTestCorrespondDak(IntegrationTestCase):
+class IntegrationTestOutwardDak(IntegrationTestCase):
 	"""
-	Integration tests for CorrespondDak.
+	Integration tests for OutwardDak.
 	Use this class for testing interactions between multiple components.
 	"""
 

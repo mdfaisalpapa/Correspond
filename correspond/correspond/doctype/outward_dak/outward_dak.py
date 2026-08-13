@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class CorrespondDak(Document):
+class OutwardDak(Document):
 	pass

@@ -47,5 +47,26 @@
   "modified": "2026-08-12 17:45:34.262352",
   "name": "Close Dak",
   "workflow_action_name": "Close Dak"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-13 05:22:44.962274",
+  "name": "Send For Approval",
+  "workflow_action_name": "Send For Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-13 05:23:07.076656",
+  "name": "Approve & Lock",
+  "workflow_action_name": "Approve & Lock"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-13 05:24:04.558672",
+  "name": "Dispatch Letter",
+  "workflow_action_name": "Dispatch Letter"
  }
 ]

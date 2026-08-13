@@ -40,8 +40,8 @@ def get_file_and_references(file_name):
         order_by="creation asc",
     )
 
-    # 3. Fetch all daks linked via Correspond Dak child tables
-    dak_meta = frappe.get_meta("Correspond Dak")
+    # 3. Fetch all daks linked via Outward Dak child tables
+    dak_meta = frappe.get_meta("Outward Dak")
     dak_child_tables = [
         df.options for df in dak_meta.get_table_fields() if df.fieldtype == "Table"
     ]
@@ -66,7 +66,7 @@ def get_file_and_references(file_name):
     daks = []
     if dak_names:
         daks = frappe.get_all(
-            "Correspond Dak",
+            "Outward Dak",
             filters={"name": ["in", list(dak_names)]},
             fields=["name", "subject"],
         )

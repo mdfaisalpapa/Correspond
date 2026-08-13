@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class DakFileLink(Document):
+class OutwardDakLinkedFile(Document):
 	pass
