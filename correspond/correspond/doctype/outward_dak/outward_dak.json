@@ -14,7 +14,8 @@
   "signature",
   "attachments",
   "status",
-  "linked_files"
+  "linked_files",
+  "amended_from"
  ],
  "fields": [
   {
@@ -61,16 +62,29 @@
    "label": "Attachments"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Draft\nPending Approval\nApproved\nDispatched\nCancelled"
+   "options": "Draft\nPending Approval\nApproved\nDispatched\nCancelled",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Outward Dak",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2026-08-13 05:41:25.600560",
+ "modified": "2026-08-13 05:51:46.845510",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Outward Dak",
