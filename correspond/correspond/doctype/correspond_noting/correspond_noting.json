@@ -9,7 +9,8 @@
   "section_break_rmnx",
   "amended_from",
   "file",
-  "note_details"
+  "note_details",
+  "status"
  ],
  "fields": [
   {
@@ -32,19 +33,27 @@
    "in_list_view": 1,
    "label": "File",
    "options": "Correspond File",
-   "reqd": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
    "fieldname": "note_details",
    "fieldtype": "Text Editor",
    "label": "Note Details"
+  },
+  {
+   "default": "Yellow",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Yellow\nGreen"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-12 04:54:46.509248",
+ "modified": "2026-08-13 07:48:48.769338",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond Noting",

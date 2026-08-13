@@ -6,6 +6,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "primary_file",
   "sender",
   "receiver",
   "subject",
@@ -66,7 +67,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Draft\nPending Approval\nApproved\nDispatched\nCancelled",
+   "options": "Draft\nApproved\nDispatched\nCancelled",
    "read_only": 1
   },
   {
@@ -78,13 +79,22 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "primary_file",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Primary File",
+   "options": "Correspond File",
+   "reqd": 1,
+   "set_only_once": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-13 05:51:46.845510",
+ "modified": "2026-08-13 06:59:21.949706",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Outward Dak",

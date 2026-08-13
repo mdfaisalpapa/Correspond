@@ -16,7 +16,7 @@
   "movement_log",
   "attached_files",
   "file_viewer_tab_tab",
-  "notings_section_section",
+  "office_view",
   "notings_display",
   "column_break_qvba",
   "dak_display"
@@ -86,10 +86,6 @@
    "label": "File Viewer Tab"
   },
   {
-   "fieldname": "notings_section_section",
-   "fieldtype": "Section Break"
-  },
-  {
    "fieldname": "notings_display",
    "fieldtype": "HTML",
    "label": "Notings Display"
@@ -102,12 +98,17 @@
    "fieldname": "dak_display",
    "fieldtype": "HTML",
    "label": "Dak Display"
+  },
+  {
+   "fieldname": "office_view",
+   "fieldtype": "Section Break",
+   "label": "Office View"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-12 05:22:15.798982",
+ "modified": "2026-08-13 07:40:11.279212",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond File",
