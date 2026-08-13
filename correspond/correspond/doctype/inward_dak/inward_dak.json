@@ -4,6 +4,7 @@
  "allow_rename": 1,
  "creation": "2026-08-12 16:44:58.907248",
  "doctype": "DocType",
+ "email_append_to": 1,
  "engine": "InnoDB",
  "field_order": [
   "section_break_ijku",
@@ -165,7 +166,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-13 15:42:45.840065",
+ "modified": "2026-08-13 17:34:41.232284",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Inward Dak",
@@ -187,7 +188,9 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "sender_field": "sender",
  "sort_field": "creation",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "subject_field": "subject"
 }
