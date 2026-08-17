@@ -140,7 +140,8 @@
    "fieldname": "linked_files",
    "fieldtype": "Table",
    "label": "Linked FIles",
-   "options": "Inward Dak Linked File"
+   "options": "Inward Dak Linked File",
+   "read_only": 1
   },
   {
    "allow_on_submit": 1,
@@ -166,7 +167,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-13 17:34:41.232284",
+ "modified": "2026-08-18 04:00:28.023981",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Inward Dak",
@@ -188,9 +189,12 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "subject",
  "sender_field": "sender",
+ "show_title_field_in_link": 1,
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],
- "subject_field": "subject"
+ "subject_field": "subject",
+ "title_field": "subject"
 }

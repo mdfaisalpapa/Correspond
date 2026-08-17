@@ -6,20 +6,26 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "file_viewer_tab_tab",
+  "file_details_section",
   "file_number",
   "subject",
+  "department",
+  "column_break_fszr",
   "file_owner",
   "current_custodian",
-  "department",
-  "is_attached",
   "attached_to",
-  "movement_log",
-  "attached_files",
-  "file_viewer_tab_tab",
+  "is_attached",
   "office_view",
   "notings_display",
   "column_break_qvba",
-  "dak_display"
+  "dak_display",
+  "attached_files_tab",
+  "attached_files_details_section",
+  "attached_files",
+  "movements_tab",
+  "file_movement_history_section",
+  "movement_log"
  ],
  "fields": [
   {
@@ -52,13 +58,11 @@
    "default": "0",
    "fieldname": "is_attached",
    "fieldtype": "Check",
-   "hidden": 1,
    "label": "Is Attached"
   },
   {
    "fieldname": "attached_to",
    "fieldtype": "Link",
-   "hidden": 1,
    "label": "Attached To",
    "options": "Correspond File"
   },
@@ -103,12 +107,42 @@
    "fieldname": "office_view",
    "fieldtype": "Section Break",
    "label": "Office View"
+  },
+  {
+   "fieldname": "attached_files_tab",
+   "fieldtype": "Tab Break",
+   "label": "Attached Files"
+  },
+  {
+   "fieldname": "attached_files_details_section",
+   "fieldtype": "Section Break",
+   "label": "Attached Files Details"
+  },
+  {
+   "fieldname": "movements_tab",
+   "fieldtype": "Tab Break",
+   "label": "Movements"
+  },
+  {
+   "fieldname": "file_movement_history_section",
+   "fieldtype": "Section Break",
+   "label": "File Movement History"
+  },
+  {
+   "fieldname": "column_break_fszr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "file_details_section",
+   "fieldtype": "Section Break",
+   "label": "File Details"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-13 07:40:11.279212",
+ "modified": "2026-08-18 05:08:48.313036",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond File",
@@ -129,7 +163,10 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "subject",
+ "show_title_field_in_link": 1,
  "sort_field": "creation",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "subject"
 }

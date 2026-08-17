@@ -17,29 +17,34 @@
   {
    "fieldname": "timestamp",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
    "label": "Timestamp"
   },
   {
    "fieldname": "moved_from",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Moved From",
    "options": "User"
   },
   {
    "fieldname": "moved_to",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Moved To",
    "options": "User"
   },
   {
    "fieldname": "action",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Action",
-   "options": "Forwarded\nPulled\nReturned"
+   "options": "Forwarded\nPulled\nReturned\nAttached\nDetached"
   },
   {
    "fieldname": "remarks",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Remarks"
   }
  ],
@@ -47,7 +52,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-12 04:48:41.323548",
+ "modified": "2026-08-18 05:03:57.759382",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "File Movement Log",
