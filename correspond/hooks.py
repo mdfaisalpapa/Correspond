@@ -293,5 +293,6 @@ has_permission = {
     "Correspond File": "correspond.permissions.has_correspond_file_permission"
 }
 fixtures = [
-    {"dt": "Role", "filters": [["name", "in", ["Correspond User"]]]}
+    {"dt": "Role", "filters": [["name", "in", ["Correspond User", "Correspond Registry Clerk"]]]},
+    {"dt": "List View Settings", "filters": [["name", "=", "Inward Dak"]]}
 ]

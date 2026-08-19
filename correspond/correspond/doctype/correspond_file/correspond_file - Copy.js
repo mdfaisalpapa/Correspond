@@ -1,12 +1,12 @@
 frappe.ui.form.on('Correspond File', {
     refresh: function(frm) {
         
-        // --- FRONTEND VISUAL LOCK ---
+        // --- NEW: FRONTEND VISUAL LOCK ---
         let is_custodian = (frm.doc.current_custodian === frappe.session.user);
         let is_admin = frappe.user.has_role("System Manager");
 
         if (!frm.is_new() && !is_custodian && !is_admin) {
-            frm.disable_form(); 
+            frm.disable_form(); // Greys out all standard text/data fields
         }
 
         // --- 1. CHILD TABLE IMMUTABILITY ---
@@ -15,16 +15,11 @@ frappe.ui.form.on('Correspond File', {
         frm.set_df_property('attached_files', 'cannot_add_rows', true);
         frm.set_df_property('attached_files', 'cannot_delete_rows', true);
 
-        // --- 2. RUTHLESS UI POLLER ---
+       // --- 2. RUTHLESS UI POLLER ---
         if (!frm._eoffice_ui_poller) {
             frm._eoffice_ui_poller = setInterval(() => {
-                let $open_btns = $('[data-fieldname="attached_files"] button[data-fieldname="open_file"]');
-                if ($open_btns.length) {
-                    $open_btns.css({'display': 'inline-block', 'visibility': 'visible', 'opacity': '1'})
-                              .prop('disabled', false)
-                              .removeClass('disabled btn-loading disabled-btn');
-                }
-
+                // (Removed the dangerous button-hiding script that was hiding your Open button)
+                
                 (frm.doc.attached_files || []).forEach(row => {
                     if (row.status === 'Detached') {
                         let $row = $(`[data-name="${row.name}"]`);
@@ -36,16 +31,19 @@ frappe.ui.form.on('Correspond File', {
             }, 300);
         }
 
-        // --- 3. SERVER-SIDE BUTTON WRAPPERS ---
+        // --- 3. SERVER-SIDE BUTTON WRAPPERS (LOCKED TO ACTIVE CUSTODIANS & MASTER FILES) ---
         let attached_grid = frm.fields_dict['attached_files'].grid;
         
+        // 1. Clear any cached Frappe grid buttons to prevent duplicates
         if (attached_grid.wrapper) {
             attached_grid.wrapper.find('.grid-custom-buttons').empty();
         }
 
-        let is_iframe = (window.self !== window.top) || window.location.href.includes('view=iframe');
+        // 2. Bulletproof Sub-File Detection (Checks database fields AND if it's in an iframe)
+        let is_iframe = (window.self !== window.top);
         let is_subfile = (frm.doc.is_attached == 1 || frm.doc.attached_to);
 
+        // 3. Only draw Attach/Detach if it is a Master File and NOT an iframe popup
         if ((frm.is_new() || is_custodian || is_admin) && !is_subfile && !is_iframe) {
             
             attached_grid.add_custom_button(__('Attach File'), () => {
@@ -67,17 +65,19 @@ frappe.ui.form.on('Correspond File', {
         if (!frm._ssr_events_bound) {
             frm._ssr_events_bound = true;
             
+            // Pagination & Tabs (Intercepts SSR output)
             $(frm.wrapper).on('click', '.prev-notes-btn', function(e) { e.preventDefault(); if (frm.eoffice_note_page > 1) { frm.eoffice_note_page--; load_eoffice_data(frm); } });
             $(frm.wrapper).on('click', '.next-notes-btn', function(e) { e.preventDefault(); frm.eoffice_note_page++; load_eoffice_data(frm); });
             $(frm.wrapper).on('click', '#eofficeRightTabs .nav-link', function(e) { e.preventDefault(); frm.eoffice_active_tab = $(this).attr('data-target'); load_eoffice_data(frm); });
             
+            // Button Actions (Intercepts SSR Output)
             $(frm.wrapper).on('click', '.edit-dak-btn', function(e) { e.preventDefault(); edit_outward_dak_inline(frm, $(this).attr('data-dak-name')); });
             $(frm.wrapper).on('click', '.edit-note-btn', function(e) { e.preventDefault(); edit_note_inline(frm, $(this).attr('data-note-name')); });
             $(frm.wrapper).on('click', '.toggle-state-btn', function(e) { e.preventDefault(); frappe.call({ method: 'correspond.correspond.doctype.correspond_file.correspond_file.set_note_state', args: { note_name: $(this).attr('data-note-name'), status: $(this).attr('data-state') }, callback: function(res) { if (!res.exc) load_eoffice_data(frm); } }); });
 
+            // Global Click for references
             $(frm.wrapper).on('click', 'a', function(e) { let href = $(this).attr('href'); if (href && (href.includes('#note-') || href.includes('#dak-'))) { let targetId = href.substring(href.indexOf('#') + 1); let targetFileMatch = href.match(/\/correspond-file\/([^\#\?]+)/); let targetFile = targetFileMatch ? targetFileMatch[1] : null; if (!targetFile || targetFile === frm.doc.name) { e.preventDefault(); scroll_to_target(targetId); } else { sessionStorage.setItem('eoffice_scroll_target', targetId); } } });
         }
-        
         frm.eoffice_note_page = frm.eoffice_note_page || 1;
         frm.eoffice_active_tab = frm.eoffice_active_tab || '#tab-toc';
         make_eoffice_full_width(frm);
@@ -96,19 +96,23 @@ function load_eoffice_data(frm) {
         callback: function(r) {
             if (!r.message) return;
             
+            // INJECT SERVER-SIDE RENDERED HTML
             frm.get_field('notings_display').$wrapper.html(r.message.green_sheet_html);
             frm.get_field('dak_display').$wrapper.html(r.message.dak_tabs_html);
 
+            // Handle scroll anchors securely
             setTimeout(() => { let targetId = sessionStorage.getItem('eoffice_scroll_target') || (window.location.hash ? window.location.hash.substring(1) : null); if (targetId) { sessionStorage.removeItem('eoffice_scroll_target'); scroll_to_target(targetId); } }, 400);
 
+            // SECURE UI LOCKDOWN FOR SNAPSHOTS
             if (r.message.is_historical) {
                 frm.dashboard.set_headline_alert(`<div style="background-color: #fff3cd; color: #856404; padding: 12px; border-radius: 4px; border: 1px solid #ffeeba; font-size: 14px;"><i class="fa fa-history" style="margin-right: 5px;"></i> <b>HISTORICAL SNAPSHOT (READ ONLY):</b> You are viewing this file exactly as it existed when it left your custody on <b>${r.message.cutoff_date}</b>. Newer correspondence is securely hidden by the server.</div>`);
                 frm.disable_save();
-                return; 
+                return; // Halt Execution
             } 
             
             frm.dashboard.clear_headline();
 
+            // RENDER STANDARD ACTIONS
             if (!r.message.has_draft) { frm.add_custom_button('Add Note', () => { add_note_inline(frm); }, 'Actions'); }
             frm.add_custom_button('Add Inward Dak', () => { frappe.prompt([{ label: 'Select Inward Dak', fieldname: 'dak_id', fieldtype: 'Link', options: 'Inward Dak', reqd: 1 }], function(values) { let row = frm.add_child("daks_table"); row.inward_dak = values.dak_id; frm.refresh_field("daks_table"); frm.save(); }, __('Attach Dak to File'), __('Attach')); }, 'Actions');
             frm.add_custom_button('Create Outgoing Dak', () => { create_outward_dak_inline(frm); }, 'Actions');
@@ -243,7 +247,7 @@ function show_popup_reference_dialog(file_name, parent_dialog) {
 }
 
 // ================================================================
-// OFFICE VIEW - FULL WIDTH CSS INJECTION (FORCEFUL IFRAME CLEANUP)
+// OFFICE VIEW - FULL WIDTH CSS INJECTION
 // ================================================================
 function make_eoffice_full_width(frm) {
     if (!$('#eoffice-full-width-css').length) {
@@ -252,42 +256,38 @@ function make_eoffice_full_width(frm) {
             [data-fieldname="office_view"] .form-column { width: 50% !important; max-width: 50% !important; flex: 0 0 50% !important; box-sizing: border-box !important; } 
             [data-fieldname="notings_display"], [data-fieldname="dak_display"], .eoffice-scroll-container { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; } 
             
+            /* HIDE FRAPPE NATIVE ICONS */
             [data-fieldname="attached_files"] .link-btn { display: none !important; } 
             [data-fieldname="attached_files"] .grid-row-open { display: none !important; } 
         `;
 
-        // Explicit check via window bounds or search parameters
-        const is_iframe_context = (window.self !== window.top) || window.location.href.includes('view=iframe');
-
-        if (is_iframe_context) {
+        if (window.self !== window.top) {
+            // IFRAME ONLY: NUCLEAR CSS TO DESTROY MENUS
             css += `
-                .standard-sidebar, .layout-side-section, .sidebar-container, .sidebar-toggle-btn, .desk-sidebar, .page-sidebar, div[class*="sidebar"] { display: none !important; width: 0 !important; max-width: 0 !important; }
-                .navbar, header, .page-head, .page-actions, .form-page-actions { display: none !important; height: 0 !important; }
-                .layout-main-section, .page-content { border-left: none !important; margin-left: 0 !important; padding: 0 !important; width: 100% !important; min-height: 100vh !important; }
+                .standard-sidebar, .layout-side-section, .sidebar-container, .sidebar-toggle-btn { display: none !important; width: 0 !important; }
+                .navbar, header, .page-head, .page-actions, .form-page-actions { display: none !important; }
+                .layout-main-section { border-left: none !important; margin-left: 0 !important; padding: 0 !important; width: 100% !important; }
                 .page-container, #body { padding-top: 0 !important; padding-bottom: 0 !important; }
-                .page-breadcrumbs { display: none !important; }
             `;
             
-            // Continuous forceful cleaner interval for dynamically loaded components
+            // Actively find and hide DOM elements just in case Frappe rebuilds them dynamically
             setInterval(() => {
-                $('.standard-sidebar, .layout-side-section, .sidebar-container, .desk-sidebar, .page-sidebar, .navbar, header, .page-head').remove();
-                $('.layout-main-section, .page-content').css({'margin-left': '0', 'border': 'none', 'padding': '0', 'width': '100%'});
-            }, 100);
+                $('.standard-sidebar, .layout-side-section, .navbar, header, .page-head').hide();
+                $('.layout-main-section').css({'margin-left': '0', 'border': 'none', 'padding': '0', 'width': '100%'});
+            }, 300);
         }
         $('head').append(`<style id="eoffice-full-width-css">${css}</style>`);
     }
 }
-
 // ================================================================
-// CHILD TABLE BUTTON ACTIONS (Opens the Sub-file with iframe query flag)
+// CHILD TABLE BUTTON ACTIONS (Opens the Sub-file)
 // ================================================================
 frappe.ui.form.on('Attached Files Log', {
     open_file: function(frm, cdt, cdn) {
         let row = frappe.get_doc(cdt, cdn);
         if (!row.linked_file) return;
 
-        // Force appending view=iframe to instruct the subfile route to drop navigation chrome
-        let url = `/app/correspond-file/${encodeURIComponent(row.linked_file)}?view=iframe`;
+        let url = `/app/correspond-file/${encodeURIComponent(row.linked_file)}`;
         
         let dialog = new frappe.ui.Dialog({
             title: `<i class="fa fa-folder-open text-warning"></i> Viewing Attached File: <b>${row.linked_file}</b>`,
@@ -301,16 +301,20 @@ frappe.ui.form.on('Attached Files Log', {
             ]
         });
 
+        // Force the dialog to be ultra-wide
         dialog.$wrapper.find('.modal-dialog').css({'max-width': '95vw', 'width': '95vw'});
+
         dialog.show();
 
-        // Target row button recovery via short timeout
+        // FIX: Target the specific row and force Frappe to instantly redraw it 
+        // This safely bypasses the "loading/hidden" button state
         setTimeout(() => {
-            let $btn = $(frm.wrapper).find(`[data-name="${cdn}"] button[data-fieldname="open_file"]`);
-            if ($btn.length) {
-                $btn.removeClass('disabled btn-loading disabled-btn').prop('disabled', false).css({'display': 'inline-block', 'visibility': 'visible', 'opacity': '1'});
+            let grid = frm.fields_dict['attached_files'].grid;
+            let grid_row = grid.get_row(cdn);
+            if (grid_row) {
+                grid_row.refresh();
             }
-        }, 300);
+        }, 200);
 
         return Promise.resolve();
     }

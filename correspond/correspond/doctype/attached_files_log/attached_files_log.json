@@ -47,6 +47,7 @@
   {
    "fieldname": "open_file",
    "fieldtype": "Button",
+   "in_list_view": 1,
    "label": "Open"
   }
  ],
@@ -54,7 +55,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-19 05:01:18.141991",
+ "modified": "2026-08-19 14:21:15.088422",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Attached Files Log",

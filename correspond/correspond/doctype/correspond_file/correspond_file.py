@@ -6,7 +6,18 @@ import json
 import re
 
 class CorrespondFile(Document):
-    pass
+    def validate(self):
+        # Allow initial creation
+        if self.is_new():
+            return
+            
+        # Get the custodian that is currently saved in the database BEFORE this save attempt
+        old_custodian = self.db_get('current_custodian')
+        
+        # If the file belongs to someone else, reject the save
+        if old_custodian and old_custodian != frappe.session.user:
+            if "System Manager" not in frappe.get_roles(frappe.session.user):
+                frappe.throw("Action Denied: You cannot modify a file that is no longer in your active custody.")
 
 @frappe.whitelist()
 def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
@@ -17,7 +28,16 @@ def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
     # 1. ACCESS CONTROL & TEMPORAL VERSIONING 
     file_doc = frappe.get_doc("Correspond File", file_name)
     is_custodian = (file_doc.current_custodian == user)
-    has_full_access = is_custodian or ("System Manager" in frappe.get_roles(user))
+    
+    # --- NEW: INHERITED CUSTODY CHECK ---
+    is_master_custodian = False
+    if file_doc.is_attached and file_doc.attached_to:
+        master_custodian = frappe.db.get_value("Correspond File", file_doc.attached_to, "current_custodian")
+        if master_custodian == user:
+            is_master_custodian = True
+
+    # Added is_master_custodian to the access check
+    has_full_access = is_custodian or is_master_custodian or ("System Manager" in frappe.get_roles(user))
 
     is_historical = False
     cutoff_date = None
@@ -220,6 +240,7 @@ def set_note_state(note_name, status):
 
 @frappe.whitelist()
 def forward_file(file_name, recipient, remarks):
+    user = frappe.session.user
     doc = frappe.get_doc("Correspond File", file_name)
     doc.current_custodian = recipient
 
@@ -237,7 +258,11 @@ def forward_file(file_name, recipient, remarks):
     movement_meta = frappe.get_meta("File Movement Log")
     movement_fields = [df.fieldname for df in movement_meta.fields]
     
-    row_data = {"remarks": remarks}
+    row_data = {
+        "remarks": remarks,
+        "action": "Forwarded"
+    }
+    
     if "to_user" in movement_fields:
         row_data["to_user"] = recipient
     elif "recipient" in movement_fields:
@@ -248,13 +273,36 @@ def forward_file(file_name, recipient, remarks):
     if "date" in movement_fields:
         row_data["date"] = frappe.utils.nowdate()
     elif "timestamp" in movement_fields:
-        row_data["timestamp"] = frappe.utils.now()
+        row_data["timestamp"] = frappe.utils.now_datetime()
+        
+    if "moved_from" in movement_fields:
+        row_data["moved_from"] = user
 
+    # 1. Update Master File
     doc.append("movement_log", row_data)
     doc.save(ignore_permissions=True)
 
-    return {"status": "success"}
+    # --- FIX: FULLY SYNCHRONIZE CUSTODY AND LOGS FOR SUB-FILES ---
+    for attached in doc.get("attached_files", []):
+        if attached.status == "Active":
+            # Physically load the sub-file
+            child_file = frappe.get_doc("Correspond File", attached.linked_file)
+            
+            # Transfer custody of the sub-file to the new recipient
+            child_file.current_custodian = recipient 
+            
+            # Properly append the shadow log
+            child_log = row_data.copy()
+            
+            # FIX: Use a standard Select option to pass validation
+            child_log["action"] = "Forwarded" 
+            child_log["remarks"] = f"[Moved with Master File {file_name}] {remarks}"
+            
+            child_file.append("movement_log", child_log)
+            child_file.save(ignore_permissions=True)
 
+    return {"status": "success"}
+    
 @frappe.whitelist()
 def attach_sub_file(master_file, child_file):
     user = frappe.session.user
