@@ -149,7 +149,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-19 10:53:50.267508",
+ "modified": "2026-08-19 13:21:48.447306",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Outward Dak",
@@ -164,6 +164,17 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Correspond User",
    "share": 1,
    "write": 1
   }

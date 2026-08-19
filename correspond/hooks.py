@@ -292,3 +292,6 @@ has_permission = {
     "Inward Dak": "correspond.permissions.has_inward_dak_permission",
     "Correspond File": "correspond.permissions.has_correspond_file_permission"
 }
+fixtures = [
+    {"dt": "Role", "filters": [["name", "in", ["Correspond User"]]]}
+]
