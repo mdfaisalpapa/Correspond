@@ -273,3 +273,22 @@ fixtures = [
     "Workflow State",
     "Workflow Action Master"
 ]
+add_to_apps_screen = [
+    {
+        "name": "correspond",
+        "logo": "/assets/correspond/correspond_logo.png",
+        "title": "Correspond",
+        "route": "/desk",
+    }
+]
+# Apply SQL filters to list views
+permission_query_conditions = {
+    "Inward Dak": "correspond.permissions.get_inward_dak_query",
+    "Correspond File": "correspond.permissions.get_correspond_file_query"
+}
+
+# Apply strict read/write security to the documents themselves
+has_permission = {
+    "Inward Dak": "correspond.permissions.has_inward_dak_permission",
+    "Correspond File": "correspond.permissions.has_correspond_file_permission"
+}

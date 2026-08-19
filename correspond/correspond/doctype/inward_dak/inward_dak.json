@@ -58,12 +58,14 @@
    "label": "Receipt Date"
   },
   {
+   "default": "Email",
    "fieldname": "receipt_mode",
    "fieldtype": "Select",
    "label": "Receipt Mode",
-   "options": "By Hand\nOrdinary Post\nSpeed Post\nCourier\nEmail\nOther"
+   "options": "Email\nPhysical Post\nInternal Transfer\nHand Delivered"
   },
   {
+   "depends_on": "eval:doc.receipt_mode != 'Internal Transfer'",
    "fieldname": "external_sender_details_section",
    "fieldtype": "Section Break",
    "label": "External Sender Details"
@@ -167,7 +169,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-18 04:00:28.023981",
+ "modified": "2026-08-19 11:52:35.717197",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Inward Dak",

@@ -6,10 +6,15 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "primary_file",
-  "sender",
+  "recipient_details_section",
+  "recipient_type",
+  "internal_recipient",
   "receiver",
   "receiver_email",
+  "cc_list",
+  "section_break_eczw",
+  "primary_file",
+  "sender",
   "subject",
   "reference",
   "letter_body",
@@ -43,10 +48,10 @@
   },
   {
    "allow_in_quick_entry": 1,
+   "depends_on": "eval:doc.recipient_type == 'External User'",
    "fieldname": "receiver",
    "fieldtype": "Small Text",
-   "label": "Receiver",
-   "reqd": 1
+   "label": "Receiver"
   },
   {
    "allow_in_quick_entry": 1,
@@ -103,17 +108,48 @@
    "set_only_once": 1
   },
   {
+   "depends_on": "eval:doc.recipient_type == 'External User'",
    "fieldname": "receiver_email",
    "fieldtype": "Data",
    "label": "Receiver Email",
    "options": "Email"
+  },
+  {
+   "fieldname": "recipient_type",
+   "fieldtype": "Select",
+   "label": "Recipient Type",
+   "options": "Internal User\nExternal User"
+  },
+  {
+   "depends_on": "eval:doc.recipient_type == 'Internal User'",
+   "fieldname": "internal_recipient",
+   "fieldtype": "Link",
+   "label": "Internal Recipient",
+   "options": "User"
+  },
+  {
+   "fieldname": "cc_list",
+   "fieldtype": "Table",
+   "label": "CC List",
+   "options": "Outward Dak CC"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "recipient_details_section",
+   "fieldtype": "Section Break",
+   "label": "Recipient Details"
+  },
+  {
+   "fieldname": "section_break_eczw",
+   "fieldtype": "Section Break",
+   "label": "Content"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-13 13:42:05.903931",
+ "modified": "2026-08-19 10:53:50.267508",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Outward Dak",
