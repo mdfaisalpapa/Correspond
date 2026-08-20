@@ -9,8 +9,8 @@
   "disable_sidebar_stats": 0,
   "docstatus": 0,
   "doctype": "List View Settings",
-  "fields": "[{\"fieldname\":\"subject\",\"label\":\"Subject\"},{\"fieldname\":\"receipt_mode\",\"label\":\"Receipt Mode\"},{\"fieldname\":\"status_field\",\"label\":\"Status\"},{\"fieldname\":\"assigned_to\",\"label\":\"Assigned To\"},{\"fieldname\":\"sender_name\",\"label\":\"Sender Name\"},{\"fieldname\":\"sender\",\"label\":\"Sender Email\"},{\"fieldname\":\"receipt_date\",\"label\":\"Receipt Date\"}]",
-  "modified": "2026-08-19 14:18:58.920145",
+  "fields": "[{\"fieldname\":\"subject\",\"label\":\"Subject\"},{\"fieldname\":\"recipient\",\"label\":\"Recipient\"},{\"fieldname\":\"status_field\",\"label\":\"Status\"},{\"fieldname\":\"receipt_date\",\"label\":\"Receipt Date\"},{\"fieldname\":\"receipt_mode\",\"label\":\"Receipt Mode\"},{\"fieldname\":\"sender\",\"label\":\"Sender Email\"},{\"fieldname\":\"sender_name\",\"label\":\"Sender Name\"}]",
+  "modified": "2026-08-20 12:14:07.166486",
   "name": "Inward Dak",
   "show_tags": 0
  }

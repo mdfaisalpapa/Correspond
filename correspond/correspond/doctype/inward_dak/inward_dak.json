@@ -26,7 +26,7 @@
   "category",
   "attachments",
   "routing_and_action_section",
-  "assigned_to",
+  "recipient",
   "remarks",
   "linked_files",
   "status"
@@ -128,12 +128,6 @@
    "label": "Routing and Action"
   },
   {
-   "fieldname": "assigned_to",
-   "fieldtype": "Link",
-   "label": "Assigned To",
-   "options": "User"
-  },
-  {
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
@@ -164,13 +158,19 @@
    "fieldtype": "Data",
    "label": "Sender Email",
    "options": "Email"
+  },
+  {
+   "fieldname": "recipient",
+   "fieldtype": "Link",
+   "label": "Recipient",
+   "options": "User"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-19 14:16:37.641135",
+ "modified": "2026-08-20 12:02:48.266481",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Inward Dak",

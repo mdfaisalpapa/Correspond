@@ -19,31 +19,7 @@ frappe.ui.form.on('Correspond File', {
         frm.set_df_property('attached_files', 'cannot_add_rows', true);
         frm.set_df_property('attached_files', 'cannot_delete_rows', true);
 
-        // --- 2. RUTHLESS UI POLLER & BUTTON RENDERER ---
-        if (!frm._eoffice_ui_poller) {
-            frm._eoffice_ui_poller = setInterval(() => {
-                // Instantly inject/restore our custom Open button with high z-index
-                $('[data-fieldname="attached_files"] .grid-row').each(function() {
-                    let $row = $(this);
-                    let docname = $row.attr('data-name');
-                    if (docname) {
-                        let $cell = $row.find('[data-fieldname="open_file"]');
-                        if ($cell.length && !$cell.find('.custom-open-btn').length) {
-                            $cell.html(`<button type="button" class="btn btn-xs btn-default custom-open-btn" data-row-name="${docname}" style="position: relative; z-index: 100;"><i class="fa fa-folder-open text-warning"></i> Open</button>`);
-                        }
-                    }
-                });
-
-                (frm.doc.attached_files || []).forEach(row => {
-                    if (row.status === 'Detached') {
-                        let $row = $(`[data-name="${row.name}"]`);
-                        $row.find('.grid-row-check, input[type="checkbox"]').prop('checked', false).prop('disabled', true);
-                        $row.find('.frappe-checkbox, .grid-row-check').css({'visibility': 'hidden', 'pointer-events': 'none'});
-                        $row.css('color', '#a3a3a3');
-                    }
-                });
-            }, 250);
-        }
+        
 
         // --- 3. SERVER-SIDE BUTTON WRAPPERS ---
         let attached_grid = frm.fields_dict['attached_files'].grid;
@@ -415,3 +391,40 @@ function make_eoffice_full_width(frm) {
         $('head').append(`<style id="eoffice-full-width-css">${css}</style>`);
     }
 }
+// --- NEW EVENT-DRIVEN RENDERER ---
+function render_attached_files_ui(frm) {
+    if (!frm.fields_dict['attached_files'] || !frm.fields_dict['attached_files'].grid) return;
+    
+    // Allow Frappe a moment to finish drawing the DOM before we manipulate it
+    setTimeout(() => {
+        $('[data-fieldname="attached_files"] .grid-row').each(function() {
+            let $row = $(this);
+            let docname = $row.attr('data-name');
+            if (!docname) return;
+
+            // 1. Inject custom Open button
+            let $cell = $row.find('[data-fieldname="open_file"]');
+            if ($cell.length && !$cell.find('.custom-open-btn').length) {
+                $cell.html(`<button type="button" class="btn btn-xs btn-default custom-open-btn" data-row-name="${docname}" style="position: relative; z-index: 100;"><i class="fa fa-folder-open text-warning"></i> Open</button>`);
+            }
+
+            // 2. Handle detached state logic
+            let row_doc = frappe.get_doc('Attached Files Log', docname);
+            if (row_doc && row_doc.status === 'Detached') {
+                $row.find('.grid-row-check, input[type="checkbox"]').prop('checked', false).prop('disabled', true);
+                $row.find('.frappe-checkbox, .grid-row-check').css({'visibility': 'hidden', 'pointer-events': 'none'});
+                $row.css('color', '#a3a3a3');
+            }
+        });
+    }, 50);
+}
+
+// Hook into standard Child Table events
+frappe.ui.form.on('Attached Files Log', {
+    attached_files_add: function(frm) {
+        render_attached_files_ui(frm);
+    },
+    attached_files_remove: function(frm) {
+        render_attached_files_ui(frm);
+    }
+});

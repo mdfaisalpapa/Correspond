@@ -271,8 +271,17 @@ fixtures = [
     },
     "Workflow",
     "Workflow State",
-    "Workflow Action Master"
+    "Workflow Action Master",
+    {
+        "dt": "Role", 
+        "filters": [["name", "in", ["Correspond User", "Correspond Registry Clerk"]]]
+    },
+    {
+        "dt": "List View Settings", 
+        "filters": [["name", "=", "Inward Dak"]]
+    }
 ]
+
 add_to_apps_screen = [
     {
         "name": "correspond",
@@ -281,6 +290,7 @@ add_to_apps_screen = [
         "route": "/desk",
     }
 ]
+
 # Apply SQL filters to list views
 permission_query_conditions = {
     "Inward Dak": "correspond.permissions.get_inward_dak_query",
@@ -292,7 +302,3 @@ has_permission = {
     "Inward Dak": "correspond.permissions.has_inward_dak_permission",
     "Correspond File": "correspond.permissions.has_correspond_file_permission"
 }
-fixtures = [
-    {"dt": "Role", "filters": [["name", "in", ["Correspond User", "Correspond Registry Clerk"]]]},
-    {"dt": "List View Settings", "filters": [["name", "=", "Inward Dak"]]}
-]

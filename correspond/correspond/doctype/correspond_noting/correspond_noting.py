@@ -15,16 +15,22 @@ class CorrespondNoting(Document):
     if not self.note_details:
       return
 
-    # Regular expression to catch any internal app links embedded in the text editor HTML
-    pattern = r'href=["\'](/app/(correspond-noting|correspond-dak)/([^"\']+))["\']'
-    matches = re.findall(pattern, self.note_details)
+    # UPDATED REGEX: Makes the domain optional so both relative and absolute URLs pass
+    pattern = r'href=["\'](?:https?://[^/]+)?/app/(correspond-noting|correspond-dak)/([^"\']+)["\']'
+    
+    # Use re.finditer to safely unpack just the groups we need
+    matches = re.finditer(pattern, self.note_details)
 
-    for full_path, doctype_slug, target_name in matches:
+    for match in matches:
+      doctype_slug = match.group(1)
+      target_name = match.group(2)
+
       target_doctype = (
           'Correspond Noting'
           if 'noting' in doctype_slug
           else 'Correspond Dak'
       )
+      
 
       # 1. Verify the document actually exists
       if not frappe.db.exists(target_doctype, target_name):

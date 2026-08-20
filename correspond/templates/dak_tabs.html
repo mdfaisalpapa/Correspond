@@ -1,0 +1,61 @@
+{# Define active tab states and badges based on the context passed from Python #}
+{% set drafts_badge = '<span class="badge badge-danger ml-1">' ~ draft_daks|length ~ '</span>' if draft_daks else '' %}
+{% set toc_a = ('active', 'show active') if active_tab == '#tab-toc' else ('', '') %}
+{% set prev_a = ('active', 'show active') if active_tab == '#tab-prev-notes' else ('', '') %}
+{% set draft_a = ('active', 'show active') if active_tab == '#tab-drafts' else ('', '') %}
+
+<div style="background-color: #fff; border-radius: 8px; border: 1px solid #dee2e6; height: 75vh; display: flex; flex-direction: column;">
+    
+    {# Tab Navigation Headers #}
+    <ul class="nav nav-tabs" id="eofficeRightTabs" role="tablist" style="background: #f8f9fa; border-radius: 8px 8px 0 0; padding: 5px 0 0 5px; margin-bottom: 0;">
+        <li class="nav-item"><a class="nav-link {{ toc_a[0] }}" data-target="#tab-toc" role="tab" style="font-weight: 600; color: #495057; cursor: pointer;">ToC</a></li>
+        <li class="nav-item"><a class="nav-link {{ prev_a[0] }}" data-target="#tab-prev-notes" role="tab" style="font-weight: 600; color: #495057; cursor: pointer;">Previous Notings</a></li>
+        <li class="nav-item"><a class="nav-link {{ draft_a[0] }}" data-target="#tab-drafts" role="tab" style="font-weight: 600; color: #495057; cursor: pointer;">Drafts {{ drafts_badge | safe }}</a></li>
+    </ul>
+    
+    {# Tab Content Panes #}
+    <div class="tab-content" id="eofficeRightTabsContent" style="flex-grow: 1; overflow-y: auto; padding: 15px;">
+        
+        {# Table of Contents Tab #}
+        <div class="tab-pane fade {{ toc_a[1] }}" id="tab-toc" role="tabpanel">
+            {% if final_daks %}
+                {% set daks = final_daks %}
+                {% include "correspond/templates/dak_list.html" with context %}
+            {% else %}
+                <p style="text-align: center; color: #777; margin-top: 20px;">No finalized correspondence found.</p>
+            {% endif %}
+        </div>
+        
+        {# Previous Notes Tab #}
+        <div class="tab-pane fade {{ prev_a[1] }}" id="tab-prev-notes" role="tabpanel">
+            <div style="background-color: #f4fdf8; border-radius: 8px; border: 1px solid #c3e6cb; padding: 15px; min-height: 50vh;">
+                {% if submitted_notes %}
+                    {% for note in submitted_notes %}
+                    <div style="margin-bottom: 20px; border-bottom: 1px solid #c3e6cb; padding-bottom: 15px;">
+                        <div style="font-size: 12px; color: #155724; margin-bottom: 8px;">
+                            <b style="font-size: 14px; text-decoration: underline;">Note #{{ loop.index }}</b> &nbsp;•&nbsp; <b>{{ note.owner }}</b>
+                            <span class="badge badge-success" style="float: right;">Final</span>
+                        </div>
+                        <div style="font-size: 14px; color: #333; background: #fff; padding: 10px; border-radius: 5px; border: 1px solid #e2e3e5;">
+                            {{ note.get("note_details", "") | safe }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align: center; color: #777; margin-top: 20px;">No previous notings found.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        {# Drafts Tab #}
+        <div class="tab-pane fade {{ draft_a[1] }}" id="tab-drafts" role="tabpanel">
+            {% if draft_daks %}
+                {% set daks = draft_daks %} 
+                {% include "correspond/templates/dak_list.html" with context %}
+            {% else %}
+                <p style="text-align: center; color: #777; margin-top: 20px;">No pending drafts.</p>
+            {% endif %}
+        </div>
+        
+    </div>
+</div>

@@ -13,7 +13,10 @@ class OutwardDak(Document):
                 remarks=f"Primary Outward Reference: {self.name}"
             )
         elif self.recipient_type == "External User" and self.receiver_email:
-            self.send_external_email(
+            # ENQUEUE THE EMAIL INSTEAD OF CALLING DIRECTLY
+            frappe.enqueue(
+                self.send_external_email,
+                queue='short',
                 email=self.receiver_email,
                 name=self.receiver,
                 remarks="Primary Dispatch"
@@ -27,7 +30,10 @@ class OutwardDak(Document):
                     remarks=f"[CC Remarks]: {cc.remarks or 'None'}"
                 )
             elif cc.recipient_type == "External User" and cc.external_email:
-                self.send_external_email(
+                # ENQUEUE THE CC EMAIL
+                frappe.enqueue(
+                    self.send_external_email,
+                    queue='short',
                     email=cc.external_email,
                     name=cc.external_name,
                     remarks=cc.remarks
@@ -40,7 +46,7 @@ class OutwardDak(Document):
             "subject": self.subject,
             "sender_name": f"Internal Dispatch ({frappe.session.user})", # Mapped to your Sender Name field
             "receipt_mode": "Internal Transfer", # Automatically sets the mode
-            "assigned_to": recipient,            # <--- MAPPED TO YOUR EXISTING FIELD
+            "recipient": recipient,            # <--- MAPPED TO YOUR EXISTING FIELD
             "remarks": remarks,
             "description": self.letter_body,     # Mapped to your Description field
             "status": "Draft"

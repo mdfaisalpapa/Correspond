@@ -138,97 +138,31 @@ def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
 # SERVER-SIDE RENDERERS (Replaces JavaScript Strings)
 # ================================================================
 def render_green_sheet(paginated_notes, start_idx, end_idx, total_notes, has_draft, is_snapshot):
-    html = f"""
-    <div class="eoffice-scroll-container" style="padding: 15px; background-color: #f4fdf8; border-radius: 8px; border: 1px solid #c3e6cb; height: 75vh; overflow-y: auto; position: relative;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #155724; padding-bottom: 10px; margin-bottom: 15px;">
-            <h4 style="color: #155724; margin: 0;">Green Sheet</h4>
-            <div style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px; display: flex; align-items: center;">
-                <button class="btn btn-xs btn-default prev-notes-btn" style="padding: 2px 6px;"><b>&lt;</b></button>
-                <span style="margin: 0 10px; font-weight: bold; color: #495057;">{start_idx + 1 if total_notes > 0 else 0} - {end_idx} of {total_notes} Note(s)</span>
-                <button class="btn btn-xs btn-default next-notes-btn" style="padding: 2px 6px;"><b>&gt;</b></button>
-            </div>
-        </div>
-    """
-    if has_draft and not is_snapshot:
-        html += '<div style="background-color: #fff3cd; color: #856404; padding: 8px; border-radius: 4px; font-size: 12px; text-align: center; margin-bottom: 15px; border: 1px solid #ffeeba;">⚠️ <b>Locked:</b> Cannot add new notes while an existing note is in Draft state.</div>'
-
-    if paginated_notes:
-        for idx, note in enumerate(paginated_notes):
-            actual_no = start_idx + idx + 1
-            is_draft = (note.docstatus == 0)
-            is_green = (note.status == 'Green')
-            badge = '<span class="badge badge-success" style="float: right;">Final</span>'
-            bg, border = '#fff', '1px solid #e2e3e5'
-
-            if is_draft:
-                if is_snapshot:
-                    badge, bg, border = '<span class="badge badge-warning" style="float: right;">Draft at time of detachment</span>', '#fffde7', '1px solid #ffe082'
-                elif is_green:
-                    badge = f'<button class="btn btn-xs btn-warning toggle-state-btn" data-note-name="{note.name}" data-state="Yellow" style="float: right; margin-left: 5px;">Revert to Yellow</button><button class="btn btn-xs btn-default edit-note-btn" data-note-name="{note.name}" style="float: right; margin-left: 10px; background-color: #fff; border: 1px solid #ddd;">Edit Note</button><span class="badge badge-success" style="float: right;">Green (Ready)</span>'
-                    bg, border = '#e8f5e9', '1px solid #c8e6c9'
-                else:
-                    badge = f'<button class="btn btn-xs btn-success toggle-state-btn" data-note-name="{note.name}" data-state="Green" style="float: right; margin-left: 5px;">Mark Green</button><button class="btn btn-xs btn-default edit-note-btn" data-note-name="{note.name}" style="float: right; margin-left: 10px; background-color: #fff; border: 1px solid #ddd;">Edit Note</button><span class="badge badge-warning" style="float: right;">Yellow Draft</span>'
-                    bg, border = '#fffde7', '1px solid #ffe082'
-
-            html += f"""
-            <div id="note-{note.name}" class="target-reference-item" style="margin-bottom: 20px; border-bottom: 1px solid #c3e6cb; padding-bottom: 15px;">
-                <div style="font-size: 12px; color: #155724; margin-bottom: 8px;"><b style="font-size: 14px; text-decoration: underline;">Note #{actual_no}</b> &nbsp;•&nbsp; <b>{note.owner}</b> • {badge}</div>
-                <div style="font-size: 14px; color: #333; background: {bg}; padding: 10px; border-radius: 5px; border: {border};">{note.get('note_details', '')}</div>
-            </div>"""
-    else:
-        html += '<p style="text-align: center; color: #777; margin-top: 20px;">No notings found.</p>'
-
-    return html + '</div>'
-
+    # Prepare the data context to pass to the Jinja template
+    context = {
+        "notes": paginated_notes,
+        "start_idx": start_idx,
+        "end_idx": end_idx,
+        "total_notes": total_notes,
+        "has_draft": has_draft,
+        "is_snapshot": is_snapshot
+    }
+    
+    # Render and return the template HTML
+    return frappe.render_template("correspond/templates/green_sheet.html", context)
 
 def render_dak_tabs(submitted_notes, final_daks, draft_daks, active_tab, is_snapshot):
-    drafts_badge = f'<span class="badge badge-danger ml-1">{len(draft_daks)}</span>' if draft_daks else ''
-    toc_a, prev_a, draft_a = ('active', 'show active') if active_tab == '#tab-toc' else ('', ''), ('active', 'show active') if active_tab == '#tab-prev-notes' else ('', ''), ('active', 'show active') if active_tab == '#tab-drafts' else ('', '')
-
-    html = f"""
-    <div style="background-color: #fff; border-radius: 8px; border: 1px solid #dee2e6; height: 75vh; display: flex; flex-direction: column;">
-        <ul class="nav nav-tabs" id="eofficeRightTabs" role="tablist" style="background: #f8f9fa; border-radius: 8px 8px 0 0; padding: 5px 0 0 5px; margin-bottom: 0;">
-            <li class="nav-item"><a class="nav-link {toc_a[0]}" data-target="#tab-toc" role="tab" style="font-weight: 600; color: #495057; cursor: pointer;">ToC</a></li>
-            <li class="nav-item"><a class="nav-link {prev_a[0]}" data-target="#tab-prev-notes" role="tab" style="font-weight: 600; color: #495057; cursor: pointer;">Previous Notings</a></li>
-            <li class="nav-item"><a class="nav-link {draft_a[0]}" data-target="#tab-drafts" role="tab" style="font-weight: 600; color: #495057; cursor: pointer;">Drafts {drafts_badge}</a></li>
-        </ul>
-        <div class="tab-content" id="eofficeRightTabsContent" style="flex-grow: 1; overflow-y: auto; padding: 15px;">
-            <div class="tab-pane fade {toc_a[1]}" id="tab-toc" role="tabpanel">"""
+    # Pass all variables to the Jinja template context
+    context = {
+        "submitted_notes": submitted_notes,
+        "final_daks": final_daks,
+        "draft_daks": draft_daks,
+        "active_tab": active_tab,
+        "is_snapshot": is_snapshot
+    }
     
-    html += generate_dak_html(final_daks, is_snapshot) if final_daks else '<p style="text-align: center; color: #777; margin-top: 20px;">No finalized correspondence found.</p>'
-    html += f'</div><div class="tab-pane fade {prev_a[1]}" id="tab-prev-notes" role="tabpanel"><div style="background-color: #f4fdf8; border-radius: 8px; border: 1px solid #c3e6cb; padding: 15px; min-height: 50vh;">'
-
-    if submitted_notes:
-        for idx, note in enumerate(submitted_notes):
-            html += f'<div style="margin-bottom: 20px; border-bottom: 1px solid #c3e6cb; padding-bottom: 15px;"><div style="font-size: 12px; color: #155724; margin-bottom: 8px;"><b style="font-size: 14px; text-decoration: underline;">Note #{idx+1}</b> &nbsp;•&nbsp; <b>{note.owner}</b><span class="badge badge-success" style="float: right;">Final</span></div><div style="font-size: 14px; color: #333; background: #fff; padding: 10px; border-radius: 5px; border: 1px solid #e2e3e5;">{note.get("note_details","")}</div></div>'
-    else: html += '<p style="text-align: center; color: #777; margin-top: 20px;">No previous notings found.</p>'
+    return frappe.render_template("correspond/templates/dak_tabs.html", context)
     
-    html += f'</div></div><div class="tab-pane fade {draft_a[1]}" id="tab-drafts" role="tabpanel">'
-    html += generate_dak_html(draft_daks, is_snapshot) if draft_daks else '<p style="text-align: center; color: #777; margin-top: 20px;">No pending drafts.</p>'
-    return html + '</div></div></div>'
-
-def generate_dak_html(daks, is_snapshot):
-    html = ''
-    for dak in daks:
-        clip = '<i class="fa fa-paperclip text-muted" style="margin-left: 10px; font-size: 1.1em;" title="Contains Attachments"></i>' if dak.get('has_attachments') else ''
-        b_cls = "badge-primary" if dak['label'] == 'Inward Dak' else "badge-success" if dak['label'] == 'Outward Dak' else "badge-warning"
-        lbl = f'<span class="badge {b_cls}" style="float: right;">{dak["label"]}</span>'
-        
-        ws_bdg = ''
-        if not dak['is_draft'] and dak.get('status'):
-            w_cls = "badge-success" if dak['status'] in ['Dispatched', 'Closed'] else "badge-info" if dak['status'] in ['Approved', 'Marked'] else "badge-secondary"
-            ws_bdg = f'<span class="badge {w_cls}" style="float: right; margin-right: 8px; font-size: 10px; padding: 4px 6px;">{dak["status"]}</span>'
-
-        serial = '<span class="badge badge-danger" style="margin-right: 5px;">DRAFT</span>' if dak['is_draft'] else f'<b style="font-size: 14px; color: #155724;">#{dak["serial_no"]}</b> &nbsp;•&nbsp;'
-        
-        if dak['is_draft']:
-            if is_snapshot: act_html = f'<span style="font-weight: 600; color: #6c757d;"><b>Subject:</b> {dak.get("subject", "Untitled")} (Draft)</span>'
-            elif dak['doctype'] == 'Outward Dak': act_html = f'<a href="javascript:void(0);" class="edit-dak-btn" data-dak-name="{dak["name"]}" title="Edit draft" style="font-weight: 600; color: #1f272e; text-decoration: none;"><b>Subject:</b> {dak.get("subject", "Untitled")} <i class="fa fa-pencil text-primary" style="margin-left: 5px;"></i></a>'
-            else: act_html = f'<a href="/app/{dak["doctype"].lower().replace(" ", "-")}/{dak["name"]}" target="_blank" title="Edit draft" style="font-weight: 600; color: #1f272e; text-decoration: none;"><b>Subject:</b> {dak.get("subject", "Untitled")} <i class="fa fa-pencil text-primary" style="margin-left: 5px;"></i></a>'
-        else: act_html = f'<a href="/api/method/frappe.utils.print_format.download_pdf?doctype={dak["doctype"]}&name={dak["name"]}&format=Standard&no_letterhead=0" target="_blank" title="Download PDF" style="font-weight: 600; color: #1f272e; text-decoration: none;"><b>Subject:</b> {dak.get("subject", "Untitled")} <i class="fa fa-file-pdf-o text-danger" style="margin-left: 5px;"></i></a>'
-
-        html += f'<div id="dak-{dak["name"]}" class="target-reference-item" style="margin-bottom: 20px; border-bottom: 1px solid #dee2e6; padding-bottom: 15px; background: {"#fff8e1" if dak["is_draft"] else "#fff"}; padding: 10px; border-radius: 5px; border: 1px solid #ced4da;"><div style="font-size: 12px; color: #495057; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;"><div>{serial} <b>ID:</b> {dak["name"]}</div><div>{ws_bdg} {lbl}</div></div><div style="font-size: 14px; color: #333; margin-top: 5px;">{act_html} {clip}</div></div>'
-    return html
 @frappe.whitelist()
 def set_note_state(note_name, status):
     doc = frappe.get_doc("Correspond Noting", note_name)
