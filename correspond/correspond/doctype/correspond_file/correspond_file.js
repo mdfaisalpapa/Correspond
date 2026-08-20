@@ -1,12 +1,16 @@
 frappe.ui.form.on('Correspond File', {
     refresh: function(frm) {
         
-        // --- FRONTEND VISUAL LOCK ---
+        // --- FRONTEND READ-ONLY LOCK FOR NON-CUSTODIANS ---
         let is_custodian = (frm.doc.current_custodian === frappe.session.user);
         let is_admin = frappe.user.has_role("System Manager");
 
         if (!frm.is_new() && !is_custodian && !is_admin) {
-            frm.disable_form(); 
+            $.each(frm.fields_dict, function(fieldname, field) {
+                if (field.df.fieldtype !== 'Table') {
+                    frm.set_df_property(fieldname, 'read_only', 1);
+                }
+            });
         }
 
         // --- 1. CHILD TABLE IMMUTABILITY ---
@@ -15,15 +19,20 @@ frappe.ui.form.on('Correspond File', {
         frm.set_df_property('attached_files', 'cannot_add_rows', true);
         frm.set_df_property('attached_files', 'cannot_delete_rows', true);
 
-        // --- 2. RUTHLESS UI POLLER ---
+        // --- 2. RUTHLESS UI POLLER & BUTTON RENDERER ---
         if (!frm._eoffice_ui_poller) {
             frm._eoffice_ui_poller = setInterval(() => {
-                let $open_btns = $('[data-fieldname="attached_files"] button[data-fieldname="open_file"]');
-                if ($open_btns.length) {
-                    $open_btns.css({'display': 'inline-block', 'visibility': 'visible', 'opacity': '1'})
-                              .prop('disabled', false)
-                              .removeClass('disabled btn-loading disabled-btn');
-                }
+                // Instantly inject/restore our custom Open button with high z-index
+                $('[data-fieldname="attached_files"] .grid-row').each(function() {
+                    let $row = $(this);
+                    let docname = $row.attr('data-name');
+                    if (docname) {
+                        let $cell = $row.find('[data-fieldname="open_file"]');
+                        if ($cell.length && !$cell.find('.custom-open-btn').length) {
+                            $cell.html(`<button type="button" class="btn btn-xs btn-default custom-open-btn" data-row-name="${docname}" style="position: relative; z-index: 100;"><i class="fa fa-folder-open text-warning"></i> Open</button>`);
+                        }
+                    }
+                });
 
                 (frm.doc.attached_files || []).forEach(row => {
                     if (row.status === 'Detached') {
@@ -33,7 +42,7 @@ frappe.ui.form.on('Correspond File', {
                         $row.css('color', '#a3a3a3');
                     }
                 });
-            }, 300);
+            }, 250);
         }
 
         // --- 3. SERVER-SIDE BUTTON WRAPPERS ---
@@ -76,6 +85,51 @@ frappe.ui.form.on('Correspond File', {
             $(frm.wrapper).on('click', '.toggle-state-btn', function(e) { e.preventDefault(); frappe.call({ method: 'correspond.correspond.doctype.correspond_file.correspond_file.set_note_state', args: { note_name: $(this).attr('data-note-name'), status: $(this).attr('data-state') }, callback: function(res) { if (!res.exc) load_eoffice_data(frm); } }); });
 
             $(frm.wrapper).on('click', 'a', function(e) { let href = $(this).attr('href'); if (href && (href.includes('#note-') || href.includes('#dak-'))) { let targetId = href.substring(href.indexOf('#') + 1); let targetFileMatch = href.match(/\/correspond-file\/([^\#\?]+)/); let targetFile = targetFileMatch ? targetFileMatch[1] : null; if (!targetFile || targetFile === frm.doc.name) { e.preventDefault(); scroll_to_target(targetId); } else { sessionStorage.setItem('eoffice_scroll_target', targetId); } } });
+
+            // --- FIX: MOUSEDOWN INTERCEPTOR ---
+            // Using 'mousedown' fires before Frappe's grid can intercept the click to select the row!
+            $(frm.wrapper).on('mousedown', '.custom-open-btn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+
+                let docname = $(this).attr('data-row-name');
+                if (!docname) return;
+                
+                // Prevent double-firing
+                if (window._opening_subfile === docname) return;
+                window._opening_subfile = docname;
+                setTimeout(() => { window._opening_subfile = false; }, 1000);
+
+                let row_doc = frappe.get_doc('Attached Files Log', docname);
+                if (!row_doc || !row_doc.linked_file) return;
+
+                let url = `/app/correspond-file/${encodeURIComponent(row_doc.linked_file)}?view=iframe`;
+                let dialog = new frappe.ui.Dialog({
+                    title: `<i class="fa fa-folder-open text-warning"></i> Viewing Attached File: <b>${row_doc.linked_file}</b>`,
+                    size: 'extra-large', 
+                    fields: [
+                        {
+                            fieldname: 'file_frame',
+                            fieldtype: 'HTML',
+                            options: `<div style="height: 82vh; width: 100%; overflow: hidden; border-radius: 4px;"><iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe></div>`
+                        }
+                    ]
+                });
+
+                dialog.$wrapper.find('.modal-dialog').css({'max-width': '95vw', 'width': '95vw'});
+                dialog.show();
+
+                return false;
+            });
+            
+            // Catch and kill the actual 'click' event so Frappe ignores it completely
+            $(frm.wrapper).on('click', '.custom-open-btn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            });
         }
         
         frm.eoffice_note_page = frm.eoffice_note_page || 1;
@@ -96,6 +150,9 @@ function load_eoffice_data(frm) {
         callback: function(r) {
             if (!r.message) return;
             
+            // FIX: Instantly clear any existing alerts before rendering new data
+            frm.dashboard.clear_headline();
+            
             frm.get_field('notings_display').$wrapper.html(r.message.green_sheet_html);
             frm.get_field('dak_display').$wrapper.html(r.message.dak_tabs_html);
 
@@ -106,8 +163,6 @@ function load_eoffice_data(frm) {
                 frm.disable_save();
                 return; 
             } 
-            
-            frm.dashboard.clear_headline();
 
             if (!r.message.has_draft) { frm.add_custom_button('Add Note', () => { add_note_inline(frm); }, 'Actions'); }
             frm.add_custom_button('Add Inward Dak', () => { frappe.prompt([{ label: 'Select Inward Dak', fieldname: 'dak_id', fieldtype: 'Link', options: 'Inward Dak', reqd: 1 }], function(values) { let row = frm.add_child("daks_table"); row.inward_dak = values.dak_id; frm.refresh_field("daks_table"); frm.save(); }, __('Attach Dak to File'), __('Attach')); }, 'Actions');
@@ -116,7 +171,6 @@ function load_eoffice_data(frm) {
         }
     });
 }
-
 // ================================================================
 // SECURE PYTHON ACTION WRAPPERS
 // ================================================================
@@ -147,9 +201,36 @@ function edit_note_inline(frm, note_name) {
 function create_outward_dak_inline(frm) {
     let d = new frappe.ui.Dialog({
         title: 'Create Outgoing Dak (Draft)',
-        fields: [{ label: 'Receiver Details', fieldname: 'receiver', fieldtype: 'Small Text', reqd: 1 }, { label: 'Receiver Email', fieldname: 'receiver_email', fieldtype: 'Data' }, { label: 'Subject', fieldname: 'subject', fieldtype: 'Data', reqd: 1 }, { label: 'Reference', fieldname: 'reference', fieldtype: 'Data' }, { label: 'Letter Body', fieldname: 'letter_body', fieldtype: 'Text Editor', reqd: 1 }, { label: 'Signature', fieldname: 'signature', fieldtype: 'Data', reqd: 1 }, { fieldtype: 'Section Break' }, { label: 'Attachments', fieldname: 'attachments', fieldtype: 'Attach' }],
-        size: 'large', primary_action_label: 'Create Draft',
-        primary_action(values) { frappe.call({ method: 'correspond.correspond.doctype.correspond_file.correspond_file.add_draft_dak', args: { file_name: frm.doc.name, dak_data: JSON.stringify(values) }, freeze: true, callback: function(r) { if (!r.exc) { d.hide(); frm.eoffice_active_tab = '#tab-drafts'; load_eoffice_data(frm); } } }); }
+        fields: [
+            { fieldtype: 'Section Break', label: 'Recipient Details' },
+            { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: 'Internal User' },
+            { fieldname: 'internal_recipient', label: 'Internal Recipient', fieldtype: 'Link', options: 'User', depends_on: 'eval:doc.recipient_type=="Internal User"' },
+            { fieldname: 'receiver', label: 'Receiver Details', fieldtype: 'Small Text', depends_on: 'eval:doc.recipient_type=="External User"' },
+            { fieldname: 'receiver_email', label: 'Receiver Email', fieldtype: 'Data', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"' },
+            
+            { fieldtype: 'Section Break', label: 'Content' },
+            { fieldname: 'sender', label: 'Sender', fieldtype: 'Link', options: 'User', default: frappe.session.user },
+            { fieldname: 'subject', label: 'Subject', fieldtype: 'Data', reqd: 1 },
+            { fieldname: 'reference', label: 'Reference', fieldtype: 'Data' },
+            { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1 },
+            { fieldname: 'signature', label: 'Signature', fieldtype: 'Data', reqd: 1 },
+            
+            { fieldtype: 'Section Break', label: 'Processing' },
+            { fieldname: 'status', label: 'Status', fieldtype: 'Select', options: 'Draft\nApproved', default: 'Draft' },
+            { fieldname: 'attachments', label: 'Attachments', fieldtype: 'Attach' }
+        ],
+        size: 'large', 
+        primary_action_label: 'Create Draft',
+        primary_action(values) { 
+            frappe.call({ 
+                method: 'correspond.correspond.doctype.correspond_file.correspond_file.add_draft_dak', 
+                args: { file_name: frm.doc.name, dak_data: JSON.stringify(values) }, 
+                freeze: true, 
+                callback: function(r) { 
+                    if (!r.exc) { d.hide(); frm.eoffice_active_tab = '#tab-drafts'; load_eoffice_data(frm); } 
+                } 
+            }); 
+        }
     });
     d.show();
 }
@@ -159,16 +240,75 @@ function edit_outward_dak_inline(frm, dak_name) {
         if (r.message) {
             let doc = r.message;
             let d = new frappe.ui.Dialog({
-                title: 'Edit Outgoing Dak (Draft)',
-                fields: [{ label: 'Receiver', fieldname: 'receiver', fieldtype: 'Small Text', reqd: 1, default: doc.receiver }, { label: 'Email', fieldname: 'receiver_email', fieldtype: 'Data', default: doc.receiver_email }, { label: 'Subject', fieldname: 'subject', fieldtype: 'Data', reqd: 1, default: doc.subject }, { label: 'Reference', fieldname: 'reference', fieldtype: 'Data', default: doc.reference }, { label: 'Body', fieldname: 'letter_body', fieldtype: 'Text Editor', reqd: 1, default: doc.letter_body }, { label: 'Signature', fieldname: 'signature', fieldtype: 'Data', reqd: 1, default: doc.signature }, { fieldtype: 'Section Break' }, { label: 'Attachments', fieldname: 'attachments', fieldtype: 'Attach', default: doc.attachments }],
-                size: 'large', primary_action_label: 'Save Changes',
-                primary_action(values) { frappe.call({ method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak', args: { file_name: frm.doc.name, dak_name: dak_name, dak_data: JSON.stringify(values) }, freeze: true, callback: function(res) { if (!res.exc) { d.hide(); frm.eoffice_active_tab = '#tab-drafts'; load_eoffice_data(frm); } } }); }
+                title: 'Edit Outgoing Dak',
+                fields: [
+                    { fieldtype: 'Section Break', label: 'Recipient Details' },
+                    { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: doc.recipient_type || 'Internal User' },
+                    { fieldname: 'internal_recipient', label: 'Internal Recipient', fieldtype: 'Link', options: 'User', depends_on: 'eval:doc.recipient_type=="Internal User"', default: doc.internal_recipient },
+                    { fieldname: 'receiver', label: 'Receiver Details', fieldtype: 'Small Text', depends_on: 'eval:doc.recipient_type=="External User"', default: doc.receiver },
+                    { fieldname: 'receiver_email', label: 'Receiver Email', fieldtype: 'Data', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"', default: doc.receiver_email },
+                    
+                    { fieldtype: 'Section Break', label: 'Content' },
+                    { fieldname: 'sender', label: 'Sender', fieldtype: 'Link', options: 'User', default: doc.sender || frappe.session.user },
+                    { fieldname: 'subject', label: 'Subject', fieldtype: 'Data', reqd: 1, default: doc.subject },
+                    { fieldname: 'reference', label: 'Reference', fieldtype: 'Data', default: doc.reference },
+                    { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1, default: doc.letter_body },
+                    { fieldname: 'signature', label: 'Signature', fieldtype: 'Data', reqd: 1, default: doc.signature },
+                    
+                    { fieldtype: 'Section Break', label: 'Processing' },
+                    { fieldname: 'status', label: 'Status', fieldtype: 'Select', options: 'Draft\nApproved', default: doc.status || 'Draft' },
+                    { fieldname: 'attachments', label: 'Attachments', fieldtype: 'Attach', default: doc.attachments }
+                ],
+                size: 'large', 
+                
+                // 1. THE NATIVE APPROVE BUTTON (PRIMARY)
+                primary_action_label: 'Approve & Finalize',
+                primary_action(values) { 
+                    values.status = 'Approved'; 
+                    frappe.confirm('Are you sure you want to Approve and Finalize this Dak? It cannot be edited afterward.', () => {
+                        frappe.call({
+                            method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak',
+                            args: { file_name: frm.doc.name, dak_name: dak_name, dak_data: JSON.stringify(values), submit_doc: true },
+                            freeze: true,
+                            callback: function(res) {
+                                if (!res.exc) { 
+                                    d.hide(); 
+                                    frm.eoffice_active_tab = '#tab-toc'; // Jump directly to the finalized ToC tab!
+                                    load_eoffice_data(frm); 
+                                }
+                            }
+                        });
+                    });
+                },
+
+                // 2. THE NATIVE SAVE DRAFT BUTTON (SECONDARY)
+                secondary_action_label: 'Save Changes (Keep Draft)',
+                secondary_action() {
+                    let values = d.get_values();
+                    if (!values) return; // Stop if mandatory fields are missing
+                    
+                    frappe.call({ 
+                        method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak', 
+                        args: { file_name: frm.doc.name, dak_name: dak_name, dak_data: JSON.stringify(values), submit_doc: false }, 
+                        freeze: true, 
+                        callback: function(res) { 
+                            if (!res.exc) { 
+                                d.hide(); 
+                                frm.eoffice_active_tab = '#tab-drafts'; 
+                                load_eoffice_data(frm); 
+                            } 
+                        } 
+                    }); 
+                }
             });
+
             d.show();
+
+            // Style the primary button to be bright green for emphasis
+            d.$wrapper.find('.modal-footer .btn-primary').removeClass('btn-primary').addClass('btn-success');
         }
     }});
 }
-
 function scroll_to_target(targetId) {
     let $target = $('#' + targetId);
     if ($target.length) {
@@ -243,7 +383,7 @@ function show_popup_reference_dialog(file_name, parent_dialog) {
 }
 
 // ================================================================
-// OFFICE VIEW - FULL WIDTH CSS INJECTION (FORCEFUL IFRAME CLEANUP)
+// OFFICE VIEW - FULL WIDTH CSS INJECTION
 // ================================================================
 function make_eoffice_full_width(frm) {
     if (!$('#eoffice-full-width-css').length) {
@@ -256,7 +396,6 @@ function make_eoffice_full_width(frm) {
             [data-fieldname="attached_files"] .grid-row-open { display: none !important; } 
         `;
 
-        // Explicit check via window bounds or search parameters
         const is_iframe_context = (window.self !== window.top) || window.location.href.includes('view=iframe');
 
         if (is_iframe_context) {
@@ -268,7 +407,6 @@ function make_eoffice_full_width(frm) {
                 .page-breadcrumbs { display: none !important; }
             `;
             
-            // Continuous forceful cleaner interval for dynamically loaded components
             setInterval(() => {
                 $('.standard-sidebar, .layout-side-section, .sidebar-container, .desk-sidebar, .page-sidebar, .navbar, header, .page-head').remove();
                 $('.layout-main-section, .page-content').css({'margin-left': '0', 'border': 'none', 'padding': '0', 'width': '100%'});
@@ -277,41 +415,3 @@ function make_eoffice_full_width(frm) {
         $('head').append(`<style id="eoffice-full-width-css">${css}</style>`);
     }
 }
-
-// ================================================================
-// CHILD TABLE BUTTON ACTIONS (Opens the Sub-file with iframe query flag)
-// ================================================================
-frappe.ui.form.on('Attached Files Log', {
-    open_file: function(frm, cdt, cdn) {
-        let row = frappe.get_doc(cdt, cdn);
-        if (!row.linked_file) return;
-
-        // Force appending view=iframe to instruct the subfile route to drop navigation chrome
-        let url = `/app/correspond-file/${encodeURIComponent(row.linked_file)}?view=iframe`;
-        
-        let dialog = new frappe.ui.Dialog({
-            title: `<i class="fa fa-folder-open text-warning"></i> Viewing Attached File: <b>${row.linked_file}</b>`,
-            size: 'extra-large', 
-            fields: [
-                {
-                    fieldname: 'file_frame',
-                    fieldtype: 'HTML',
-                    options: `<div style="height: 82vh; width: 100%; overflow: hidden; border-radius: 4px;"><iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe></div>`
-                }
-            ]
-        });
-
-        dialog.$wrapper.find('.modal-dialog').css({'max-width': '95vw', 'width': '95vw'});
-        dialog.show();
-
-        // Target row button recovery via short timeout
-        setTimeout(() => {
-            let $btn = $(frm.wrapper).find(`[data-name="${cdn}"] button[data-fieldname="open_file"]`);
-            if ($btn.length) {
-                $btn.removeClass('disabled btn-loading disabled-btn').prop('disabled', false).css({'display': 'inline-block', 'visibility': 'visible', 'opacity': '1'});
-            }
-        }, 300);
-
-        return Promise.resolve();
-    }
-});

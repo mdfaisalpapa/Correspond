@@ -1,0 +1,75 @@
+{
+ "app": "correspond",
+ "creation": "2026-08-20 05:48:56.430469",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "arrow-big-down-dash",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Dak Inbox",
+   "link_to": "Inward Dak",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "list",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Correspond File",
+   "link_to": "Correspond File",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "list",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Correspond Noting",
+   "link_to": "Correspond Noting",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "list",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Outward Dak",
+   "link_to": "Outward Dak",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "list",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Reports",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Section Break"
+  }
+ ],
+ "modified": "2026-08-20 06:17:09.349536",
+ "modified_by": "mdfaisalpapa@gmail.com",
+ "module": "Correspond",
+ "name": "Correspond",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Correspond"
+}

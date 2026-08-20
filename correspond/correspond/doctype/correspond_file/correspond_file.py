@@ -425,29 +425,27 @@ def add_draft_dak(file_name, dak_data):
     verify_active_custody(file_name)
     data = json.loads(dak_data)
     
-    frappe.get_doc({
-        "doctype": "Outward Dak",
-        "primary_file": file_name,
-        "receiver": data.get("receiver"),
-        "receiver_email": data.get("receiver_email"),
-        "subject": data.get("subject"),
-        "reference": data.get("reference"),
-        "letter_body": data.get("letter_body"),
-        "signature": data.get("signature"),
-        "attachments": data.get("attachments")
-    }).insert(ignore_permissions=True)
+    # Dynamically map ALL fields passed from the frontend dialog
+    doc = frappe.new_doc("Outward Dak")
+    doc.primary_file = file_name
+    doc.update(data)
+    doc.insert(ignore_permissions=True)
     return {"status": "success"}
 
 @frappe.whitelist()
-def update_draft_dak(file_name, dak_name, dak_data):
+def update_draft_dak(file_name, dak_name, dak_data, submit_doc=False):
     verify_active_custody(file_name)
     data = json.loads(dak_data)
     
     dak = frappe.get_doc("Outward Dak", dak_name)
     dak.update(data)
     dak.save(ignore_permissions=True)
-    return {"status": "success"}
 
+    # Automatically submit the document if the Approve button was clicked
+    if str(submit_doc).lower() == 'true':
+        dak.submit()
+
+    return {"status": "success"}
 
 
 import re
