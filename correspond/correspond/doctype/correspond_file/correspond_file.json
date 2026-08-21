@@ -16,6 +16,7 @@
   "current_custodian",
   "attached_to",
   "is_attached",
+  "has_active_attachments",
   "office_view",
   "notings_display",
   "column_break_qvba",
@@ -138,12 +139,20 @@
    "fieldname": "file_details_section",
    "fieldtype": "Section Break",
    "label": "File Details"
+  },
+  {
+   "default": "0",
+   "fieldname": "has_active_attachments",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active Attachments",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-19 14:51:30.461465",
+ "modified": "2026-08-21 04:34:33.557091",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond File",

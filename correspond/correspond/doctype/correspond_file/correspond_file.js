@@ -135,9 +135,18 @@ function load_eoffice_data(frm) {
             setTimeout(() => { let targetId = sessionStorage.getItem('eoffice_scroll_target') || (window.location.hash ? window.location.hash.substring(1) : null); if (targetId) { sessionStorage.removeItem('eoffice_scroll_target'); scroll_to_target(targetId); } }, 400);
 
             if (r.message.is_historical) {
-                frm.dashboard.set_headline_alert(`<div style="background-color: #fff3cd; color: #856404; padding: 12px; border-radius: 4px; border: 1px solid #ffeeba; font-size: 14px;"><i class="fa fa-history" style="margin-right: 5px;"></i> <b>HISTORICAL SNAPSHOT (READ ONLY):</b> You are viewing this file exactly as it existed when it left your custody on <b>${r.message.cutoff_date}</b>. Newer correspondence is securely hidden by the server.</div>`);
+                // Clear any existing intro first to prevent visual glitches
+                frm.set_intro(""); 
+                
+                // Use Frappe's native intro banner (it handles the colored background and borders automatically)
+                let msg = `<i class="fa fa-history" style="margin-right: 5px;"></i> <b>HISTORICAL SNAPSHOT (READ ONLY):</b> You are viewing this file exactly as it existed when it left your custody on <b>${r.message.cutoff_date}</b>. Newer correspondence is securely hidden by the server.`;
+                
+                frm.set_intro(msg, "orange");
                 frm.disable_save();
                 return; 
+            } else {
+                // Ensure the banner disappears if a user navigates to an active file
+                frm.set_intro("");
             } 
 
             if (!r.message.has_draft) { frm.add_custom_button('Add Note', () => { add_note_inline(frm); }, 'Actions'); }

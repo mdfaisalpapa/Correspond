@@ -3,49 +3,74 @@ import frappe
 def execute(filters=None):
     user = frappe.session.user
     
-    # 1. Define the columns for the Outbox report grid
     columns = [
         {
-            "fieldname": "name", 
-            "label": "File ID", 
+            "fieldname": "file_number", 
+            "label": "File Number", 
             "fieldtype": "Link", 
             "options": "Correspond File", 
-            "width": 160
+            "width": 220
         },
         {
             "fieldname": "subject", 
             "label": "Subject", 
             "fieldtype": "Data", 
-            "width": 320
+            "width": 300
         },
         {
-            "fieldname": "current_custodian", 
-            "label": "Current Custodian", 
+            "fieldname": "sent_to", 
+            "label": "Sent To", 
             "fieldtype": "Link", 
             "options": "User", 
-            "width": 180
+            "width": 150
         },
         {
-            "fieldname": "modified", 
-            "label": "Last Updated", 
+            "fieldname": "sent_on", 
+            "label": "Sent On", 
             "fieldtype": "Datetime", 
+            "width": 160
+        },
+        {
+            "fieldname": "currently_with", 
+            "label": "Currently With", 
+            "fieldtype": "Link", 
+            "options": "User", 
             "width": 150
+        },
+        {
+            "fieldname": "attachments", 
+            "label": "Attachments", 
+            "fieldtype": "Data", 
+            "width": 120
+        },
+        {
+            "fieldname": "action", 
+            "label": "Action", 
+            "fieldtype": "Data", 
+            "width": 120
         }
     ]
     
-    # 2. Pure SQL logic: Files the user moved away, but doesn't currently hold
     data = frappe.db.sql("""
-        SELECT DISTINCT 
-            df.name, 
-            df.subject, 
-            df.current_custodian,
-            df.modified
-        FROM `tabCorrespond File` df
-        JOIN `tabFile Movement Log` fml ON fml.parent = df.name
-        WHERE fml.moved_from = %s
-          AND df.current_custodian != %s
+        SELECT 
+            fml.parent as file_number,
+            df.subject,
+            fml.moved_to as sent_to,
+            fml.timestamp as sent_on,
+            df.current_custodian as currently_with,
+            (
+                SELECT GROUP_CONCAT(linked_file SEPARATOR ',') 
+                FROM `tabAttached Files Log` 
+                WHERE parent = df.name AND status = 'Active'
+            ) as attachments,
+            df.name as action
+        FROM `tabFile Movement Log` fml
+        JOIN `tabCorrespond File` df ON fml.parent = df.name
+        WHERE fml.moved_from = %(user)s
           AND fml.parenttype = 'Correspond File'
-        ORDER BY df.modified DESC
-    """, (user, user), as_dict=True)
+          AND fml.action = 'Forwarded'
+          AND (fml.remarks IS NULL OR fml.remarks NOT LIKE '[Moved with Master File%%')
+        ORDER BY fml.timestamp DESC
+    """, {"user": user}, as_dict=True)
     
     return columns, data

@@ -188,55 +188,32 @@ def forward_file(file_name, recipient, remarks):
         note_doc = frappe.get_doc("Correspond Noting", note_name)
         note_doc.submit()
 
-    # Dynamically map fields to the File Movement Log child table
-    movement_meta = frappe.get_meta("File Movement Log")
-    movement_fields = [df.fieldname for df in movement_meta.fields]
-    
+    # 1. Clean, hardcoded movement log dictionary
     row_data = {
-        "remarks": remarks,
-        "action": "Forwarded"
+        "timestamp": frappe.utils.now_datetime(),
+        "moved_from": user,
+        "moved_to": recipient,
+        "action": "Forwarded",
+        "remarks": remarks
     }
-    
-    if "to_user" in movement_fields:
-        row_data["to_user"] = recipient
-    elif "recipient" in movement_fields:
-        row_data["recipient"] = recipient
-    elif "user" in movement_fields:
-        row_data["user"] = recipient
-        
-    if "date" in movement_fields:
-        row_data["date"] = frappe.utils.nowdate()
-    elif "timestamp" in movement_fields:
-        row_data["timestamp"] = frappe.utils.now_datetime()
-        
-    if "moved_from" in movement_fields:
-        row_data["moved_from"] = user
 
-    # 1. Update Master File
+    # 2. Update Master File
     doc.append("movement_log", row_data)
     doc.save(ignore_permissions=True)
 
-    # --- FIX: FULLY SYNCHRONIZE CUSTODY AND LOGS FOR SUB-FILES ---
+    # 3. Synchronize Sub-files
     for attached in doc.get("attached_files", []):
         if attached.status == "Active":
-            # Physically load the sub-file
             child_file = frappe.get_doc("Correspond File", attached.linked_file)
-            
-            # Transfer custody of the sub-file to the new recipient
             child_file.current_custodian = recipient 
             
-            # Properly append the shadow log
             child_log = row_data.copy()
-            
-            # FIX: Use a standard Select option to pass validation
-            child_log["action"] = "Forwarded" 
             child_log["remarks"] = f"[Moved with Master File {file_name}] {remarks}"
             
             child_file.append("movement_log", child_log)
             child_file.save(ignore_permissions=True)
 
-    return {"status": "success"}
-    
+    return {"status": "success"}    
 @frappe.whitelist()
 def attach_sub_file(master_file, child_file):
     user = frappe.session.user
@@ -254,6 +231,7 @@ def attach_sub_file(master_file, child_file):
     # 2. Update the Child File
     child.is_attached = 1
     child.attached_to = master_file
+    child.current_custodian = master.current_custodian  # <--- NEW: Instantly sync custodian upon attachment
     child.save(ignore_permissions=True)
 
     # 3. Create Movement Logs
@@ -268,13 +246,13 @@ def attach_sub_file(master_file, child_file):
         "remarks": f"Attached Sub-file: {child_file}", "moved_from": user
     })
 
-    # 4. UPSERT LOGIC: Update existing row if it exists, otherwise create new
+    # 4. UPSERT LOGIC
     existing_row = next((r for r in master.attached_files if r.linked_file == child_file), None)
     
     if existing_row:
         existing_row.status = "Active"
         existing_row.attached_on = frappe.utils.now_datetime()
-        existing_row.detached_on = None # Clear the old detached date
+        existing_row.detached_on = None
     else:
         master.append("attached_files", {
             "linked_file": child_file,
@@ -282,6 +260,8 @@ def attach_sub_file(master_file, child_file):
             "attached_on": frappe.utils.now_datetime()
         })
 
+    # <--- NEW: Toggle the list view indicator ON
+    master.has_active_attachments = 1 
     master.save(ignore_permissions=True)
     return {"status": "success"}
 
@@ -298,7 +278,7 @@ def detach_sub_files(master_file, child_files_json):
     for row in master.attached_files:
         if row.linked_file in child_files and row.status == "Active":
             
-            # 1. Update Grid Row (Do not delete it)
+            # 1. Update Grid Row
             row.status = "Detached"
             row.detached_on = frappe.utils.now_datetime()
             
@@ -320,8 +300,13 @@ def detach_sub_files(master_file, child_files_json):
                 "remarks": f"Detached Sub-file: {row.linked_file}", "moved_from": user
             })
 
+    # <--- NEW: Check if any active attachments remain. If not, turn the indicator OFF
+    active_remaining = any(r.status == "Active" for r in master.attached_files)
+    master.has_active_attachments = 1 if active_remaining else 0
+
     master.save(ignore_permissions=True)
     return {"status": "success"}
+
 # ------------------------------------------------------------------
 # CENTRALIZED CUSTODY CHECK
 # ------------------------------------------------------------------
