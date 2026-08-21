@@ -17,8 +17,8 @@ def execute(filters=None):
             "width": 300
         },
         {
-            "fieldname": "sent_to", 
-            "label": "Sent To", 
+            "fieldname": "sent_by", 
+            "label": "Sent By", 
             "fieldtype": "Link", 
             "options": "User", 
             "width": 150
@@ -47,22 +47,21 @@ def execute(filters=None):
         SELECT 
             df.name as file_number,
             df.subject,
-            (SELECT moved_to FROM `tabFile Movement Log` WHERE parent = df.name AND moved_from = %(user)s ORDER BY timestamp DESC LIMIT 1) as sent_to,
-            (SELECT timestamp FROM `tabFile Movement Log` WHERE parent = df.name AND moved_from = %(user)s ORDER BY timestamp DESC LIMIT 1) as sent_on,
-            (SELECT remarks FROM `tabFile Movement Log` WHERE parent = df.name AND moved_from = %(user)s ORDER BY timestamp DESC LIMIT 1) as remarks,
+            (SELECT moved_from FROM `tabFile Movement Log` WHERE parent = df.name AND action = 'Forwarded' ORDER BY timestamp DESC LIMIT 1) as sent_by,
+            (SELECT timestamp FROM `tabFile Movement Log` WHERE parent = df.name AND action = 'Forwarded' ORDER BY timestamp DESC LIMIT 1) as sent_on,
+            (SELECT remarks FROM `tabFile Movement Log` WHERE parent = df.name AND action = 'Forwarded' ORDER BY timestamp DESC LIMIT 1) as remarks,
             (
                 SELECT GROUP_CONCAT(linked_file SEPARATOR ',') 
                 FROM `tabAttached Files Log` 
                 WHERE parent = df.name AND status = 'Active'
             ) as attachments
         FROM `tabCorrespond File` df
-        WHERE EXISTS (
-            SELECT 1 FROM `tabFile Movement Log` 
-            WHERE parent = df.name AND moved_from = %(user)s
-        )
-        AND df.current_custodian != %(user)s
-        AND ifnull(df.is_attached, 0) = 0
-        ORDER BY (SELECT MAX(timestamp) FROM `tabFile Movement Log` WHERE parent = df.name AND moved_from = %(user)s) DESC
+        WHERE df.current_custodian = %(user)s
+          AND ifnull(df.is_attached, 0) = 0
+        ORDER BY COALESCE(
+            (SELECT timestamp FROM `tabFile Movement Log` WHERE parent = df.name AND action = 'Forwarded' ORDER BY timestamp DESC LIMIT 1), 
+            df.modified
+        ) DESC
     """, {"user": user}, as_dict=True)
     
     return columns, data

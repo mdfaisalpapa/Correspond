@@ -1,6 +1,23 @@
 frappe.ui.form.on('Correspond File', {
     refresh: function(frm) {
         
+        // =========================================================
+        // DEFERRED BREADCRUMB OVERRIDE (Non-blocking)
+        // =========================================================
+        setTimeout(() => {
+            let target_report = sessionStorage.getItem('correspond_source') || 'File Inbox';
+            if (typeof frappe.breadcrumbs !== 'undefined') {
+                frappe.breadcrumbs.all[frappe.get_route_str()] = {
+                    workspace: "Correspond",
+                    doctype: target_report,
+                    type: 'Report'
+                };
+                if (typeof frappe.breadcrumbs.update === 'function') {
+                    frappe.breadcrumbs.update();
+                }
+            }
+        }, 300); // Runs after the form has safely mounted and rendered
+
         // --- FRONTEND READ-ONLY LOCK FOR NON-CUSTODIANS ---
         let is_custodian = (frm.doc.current_custodian === frappe.session.user);
         let is_admin = frappe.user.has_role("System Manager");
@@ -18,8 +35,6 @@ frappe.ui.form.on('Correspond File', {
         frm.set_df_property('daks_table', 'cannot_delete_rows', true);
         frm.set_df_property('attached_files', 'cannot_add_rows', true);
         frm.set_df_property('attached_files', 'cannot_delete_rows', true);
-
-        
 
         // --- 3. SERVER-SIDE BUTTON WRAPPERS ---
         let attached_grid = frm.fields_dict['attached_files'].grid;
@@ -62,8 +77,7 @@ frappe.ui.form.on('Correspond File', {
 
             $(frm.wrapper).on('click', 'a', function(e) { let href = $(this).attr('href'); if (href && (href.includes('#note-') || href.includes('#dak-'))) { let targetId = href.substring(href.indexOf('#') + 1); let targetFileMatch = href.match(/\/correspond-file\/([^\#\?]+)/); let targetFile = targetFileMatch ? targetFileMatch[1] : null; if (!targetFile || targetFile === frm.doc.name) { e.preventDefault(); scroll_to_target(targetId); } else { sessionStorage.setItem('eoffice_scroll_target', targetId); } } });
 
-            // --- FIX: MOUSEDOWN INTERCEPTOR ---
-            // Using 'mousedown' fires before Frappe's grid can intercept the click to select the row!
+            // --- MOUSEDOWN INTERCEPTOR ---
             $(frm.wrapper).on('mousedown', '.custom-open-btn', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -72,7 +86,6 @@ frappe.ui.form.on('Correspond File', {
                 let docname = $(this).attr('data-row-name');
                 if (!docname) return;
                 
-                // Prevent double-firing
                 if (window._opening_subfile === docname) return;
                 window._opening_subfile = docname;
                 setTimeout(() => { window._opening_subfile = false; }, 1000);
@@ -99,7 +112,6 @@ frappe.ui.form.on('Correspond File', {
                 return false;
             });
             
-            // Catch and kill the actual 'click' event so Frappe ignores it completely
             $(frm.wrapper).on('click', '.custom-open-btn', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -126,7 +138,6 @@ function load_eoffice_data(frm) {
         callback: function(r) {
             if (!r.message) return;
             
-            // FIX: Instantly clear any existing alerts before rendering new data
             frm.dashboard.clear_headline();
             
             frm.get_field('notings_display').$wrapper.html(r.message.green_sheet_html);
@@ -135,17 +146,12 @@ function load_eoffice_data(frm) {
             setTimeout(() => { let targetId = sessionStorage.getItem('eoffice_scroll_target') || (window.location.hash ? window.location.hash.substring(1) : null); if (targetId) { sessionStorage.removeItem('eoffice_scroll_target'); scroll_to_target(targetId); } }, 400);
 
             if (r.message.is_historical) {
-                // Clear any existing intro first to prevent visual glitches
                 frm.set_intro(""); 
-                
-                // Use Frappe's native intro banner (it handles the colored background and borders automatically)
                 let msg = `<i class="fa fa-history" style="margin-right: 5px;"></i> <b>HISTORICAL SNAPSHOT (READ ONLY):</b> You are viewing this file exactly as it existed when it left your custody on <b>${r.message.cutoff_date}</b>. Newer correspondence is securely hidden by the server.`;
-                
                 frm.set_intro(msg, "orange");
                 frm.disable_save();
                 return; 
             } else {
-                // Ensure the banner disappears if a user navigates to an active file
                 frm.set_intro("");
             } 
 
@@ -156,6 +162,7 @@ function load_eoffice_data(frm) {
         }
     });
 }
+
 // ================================================================
 // SECURE PYTHON ACTION WRAPPERS
 // ================================================================
@@ -246,7 +253,6 @@ function edit_outward_dak_inline(frm, dak_name) {
                 ],
                 size: 'large', 
                 
-                // 1. THE NATIVE APPROVE BUTTON (PRIMARY)
                 primary_action_label: 'Approve & Finalize',
                 primary_action(values) { 
                     values.status = 'Approved'; 
@@ -258,7 +264,7 @@ function edit_outward_dak_inline(frm, dak_name) {
                             callback: function(res) {
                                 if (!res.exc) { 
                                     d.hide(); 
-                                    frm.eoffice_active_tab = '#tab-toc'; // Jump directly to the finalized ToC tab!
+                                    frm.eoffice_active_tab = '#tab-toc';
                                     load_eoffice_data(frm); 
                                 }
                             }
@@ -266,11 +272,10 @@ function edit_outward_dak_inline(frm, dak_name) {
                     });
                 },
 
-                // 2. THE NATIVE SAVE DRAFT BUTTON (SECONDARY)
                 secondary_action_label: 'Save Changes (Keep Draft)',
                 secondary_action() {
                     let values = d.get_values();
-                    if (!values) return; // Stop if mandatory fields are missing
+                    if (!values) return; 
                     
                     frappe.call({ 
                         method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak', 
@@ -288,12 +293,11 @@ function edit_outward_dak_inline(frm, dak_name) {
             });
 
             d.show();
-
-            // Style the primary button to be bright green for emphasis
             d.$wrapper.find('.modal-footer .btn-primary').removeClass('btn-primary').addClass('btn-success');
         }
     }});
 }
+
 function scroll_to_target(targetId) {
     let $target = $('#' + targetId);
     if ($target.length) {
@@ -400,11 +404,11 @@ function make_eoffice_full_width(frm) {
         $('head').append(`<style id="eoffice-full-width-css">${css}</style>`);
     }
 }
+
 // --- NEW EVENT-DRIVEN RENDERER ---
 function render_attached_files_ui(frm) {
     if (!frm.fields_dict['attached_files'] || !frm.fields_dict['attached_files'].grid) return;
     
-    // Allow Frappe a moment to finish drawing the DOM before we manipulate it
     setTimeout(() => {
         $('[data-fieldname="attached_files"] .grid-row').each(function() {
             let $row = $(this);

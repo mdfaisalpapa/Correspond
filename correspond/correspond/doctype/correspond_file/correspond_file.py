@@ -19,6 +19,73 @@ class CorrespondFile(Document):
             if "System Manager" not in frappe.get_roles(frappe.session.user):
                 frappe.throw("Action Denied: You cannot modify a file that is no longer in your active custody.")
 
+    # =========================================================
+    # CORE PERMISSION ENGINE OVERRIDE (eOffice Custody Rules)
+    # =========================================================
+    def has_permission(self, permtype="read", user=None, **kwargs):
+        if not user:
+            user = frappe.session.user
+            
+        if "System Manager" in frappe.get_roles(user):
+            return True
+            
+        # Allow document creation for users with Correspond operational roles
+        if permtype == "create":
+            user_roles = frappe.get_roles(user)
+            return any(r in ["System Manager", "Correspond User", "Correspond Registry Clerk"] for r in user_roles)
+            
+        if permtype == "write":
+            # Allow saving if it's a brand new document being created
+            if self.is_new():
+                user_roles = frappe.get_roles(user)
+                return any(r in ["System Manager", "Correspond User", "Correspond Registry Clerk"] for r in user_roles)
+            
+            # For existing documents, check database custodian value
+            db_custodian = frappe.db.get_value("Correspond File", self.name, "current_custodian")
+            return db_custodian == user
+            
+        if permtype == "read":
+            if self.is_new():
+                return True
+                
+            # 1. Direct Custody: User currently holds the file
+            if self.current_custodian == user:
+                return True
+                
+            # 2. Routing History: User previously sent or received this file directly
+            has_history = frappe.db.sql("""
+                SELECT 1 FROM `tabFile Movement Log`
+                WHERE parent = %s AND (moved_from = %s OR moved_to = %s)
+            """, (self.name, user, user))
+            
+            if has_history:
+                return True
+                
+            # 3. Master File Inherited Custody (The eOffice Detachment Rule)
+            master_check = frappe.db.sql("""
+                SELECT 1
+                FROM `tabAttached Files Log` a
+                WHERE a.linked_file = %s
+                AND (
+                    EXISTS (
+                        SELECT 1 FROM `tabCorrespond File` m 
+                        WHERE m.name = a.parent AND m.current_custodian = %s
+                    )
+                    OR
+                    EXISTS (
+                        SELECT 1 FROM `tabFile Movement Log` fml 
+                        WHERE fml.parent = a.parent AND (fml.moved_from = %s OR fml.moved_to = %s)
+                    )
+                )
+            """, (self.name, user, user, user))
+            
+            if master_check:
+                return True
+                
+            return False
+            
+        return None
+        
 @frappe.whitelist()
 def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
     user = frappe.session.user
@@ -43,18 +110,53 @@ def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
     cutoff_date = None
 
     if not has_full_access:
-        last_movement = frappe.db.sql("""
-            SELECT MAX(timestamp) FROM `tabFile Movement Log` 
-            WHERE parent = %s AND moved_from = %s
-        """, (file_name, user))
+        valid_cutoffs = []
 
-        if last_movement and last_movement[0][0]:
+        # 1. Direct History: User directly forwarded or received the sub-file at some point
+        direct_log = frappe.db.sql("""
+            SELECT MAX(timestamp) FROM `tabFile Movement Log` 
+            WHERE parent = %s AND (moved_from = %s OR moved_to = %s)
+        """, (file_name, user, user))
+        if direct_log and direct_log[0][0]:
+            valid_cutoffs.append(direct_log[0][0])
+
+        # 2. Inherited Master File History: The eOffice "Context" Rule
+        master_records = frappe.db.sql("""
+            SELECT 
+                a.parent AS master_file,
+                a.detached_on,
+                m.current_custodian,
+                (SELECT MAX(timestamp) FROM `tabFile Movement Log` WHERE parent = a.parent AND (moved_from = %s OR moved_to = %s)) AS user_master_timestamp
+            FROM `tabAttached Files Log` a
+            JOIN `tabCorrespond File` m ON a.parent = m.name
+            WHERE a.linked_file = %s
+        """, (user, user, file_name), as_dict=True)
+
+        for rec in master_records:
+            # CASE A: User CURRENTLY holds the Master File
+            if rec.current_custodian == user:
+                # Grant access exactly up to the date it was detached
+                if rec.detached_on:
+                    valid_cutoffs.append(rec.detached_on)
+            
+            # CASE B: User PREVIOUSLY held the Master File
+            elif rec.user_master_timestamp:
+                if rec.detached_on:
+                    # They lose access based on whichever happened FIRST (detachment or forwarding)
+                    effective_cutoff = min(rec.detached_on, rec.user_master_timestamp)
+                    valid_cutoffs.append(effective_cutoff)
+                else:
+                    # File was never detached, so they lose access when they forwarded the master file
+                    valid_cutoffs.append(rec.user_master_timestamp)
+
+        # Find the absolute latest timestamp the user is legally allowed to see
+        if valid_cutoffs:
             is_historical = True
-            cutoff_date = last_movement[0][0]
+            cutoff_date = max(valid_cutoffs)
         else:
             frappe.throw(_("Access Denied: You are neither the current custodian nor in the routing history of this file."), frappe.PermissionError)
 
-    # 2. FETCH DATA (Standard SQL/ORM logic)
+    # 2. FETCH DATA (Standard SQL/ORM logic begins here...)
     meta = frappe.get_meta("Correspond File")
     child_tables = [df.options for df in meta.get_table_fields() if df.fieldtype == "Table"]
 
