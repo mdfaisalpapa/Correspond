@@ -20,53 +20,60 @@
    "fieldname": "timestamp",
    "fieldtype": "Datetime",
    "in_list_view": 1,
-   "label": "Timestamp"
+   "label": "Timestamp",
+   "read_only": 1
   },
   {
    "fieldname": "moved_from",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Moved From",
-   "options": "User"
+   "options": "User",
+   "read_only": 1
   },
   {
    "fieldname": "moved_to",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Moved To",
-   "options": "User"
+   "options": "User",
+   "read_only": 1
   },
   {
    "fieldname": "action",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Action",
-   "options": "Forwarded\nPulled\nReturned\nAttached\nDetached"
+   "options": "Forwarded\nPulled\nReturned\nAttached\nDetached",
+   "read_only": 1
   },
   {
    "fieldname": "remarks",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Remarks"
+   "label": "Remarks",
+   "read_only": 1
   },
   {
    "fieldname": "action_office",
    "fieldtype": "Link",
    "label": "Action Office",
-   "options": "Correspond Office"
+   "options": "Correspond Office",
+   "read_only": 1
   },
   {
    "fieldname": "action_designation",
    "fieldtype": "Link",
    "label": "Action Designation",
-   "options": "Designation"
+   "options": "Designation",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-22 03:57:42.562109",
+ "modified": "2026-08-22 17:47:24.077350",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "File Movement Log",

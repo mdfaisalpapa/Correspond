@@ -24,7 +24,7 @@ class CorrespondFile(Document):
             dept = user_desk.get("department")
             section = user_desk.get("section")
             
-            # 1. Department Abbreviation: First 2 characters uppercased (e.g., 'Accounts' -> 'AC')
+            # 1. Department Abbreviation: First 2 characters uppercased
             if dept:
                 dept_name = frappe.db.get_value("Department", dept, "department_name") or dept
                 dept_abbr = dept_name[:2].upper()
@@ -33,8 +33,8 @@ class CorrespondFile(Document):
             
             # 2. Office Abbreviation
             if office:
-                office_data = frappe.db.get_value("Correspond Office", office, ["abbr", "department"], as_dict=True) or {}
-                office_abbr = office_data.get("abbr") or office
+                office_data = frappe.db.get_value("Correspond Office", office, ["office_abbr", "department"], as_dict=True) or {}
+                office_abbr = office_data.get("office_abbr") or office
             else:
                 office_abbr = "GEN"
             
@@ -44,19 +44,24 @@ class CorrespondFile(Document):
             else:
                 section_abbr = "GENL"
             
-            # Final pattern: DEPT/OFFICE/SECTION/YYYY/0001[cite: 1]
+            # 4. Generate the real sequence and set the document's internal ID
             self.name = make_autoname(f"{dept_abbr}/{office_abbr}/{section_abbr}/.YYYY./.####")
+            
+            # 5. OVERWRITE the JavaScript preview with the real generated number!
+            self.file_number = self.name
             
     def before_insert(self):
         user_desk = get_desk(frappe.session.user)
-        office = user_desk.get("office")
-        dept = user_desk.get("department")
-        section = user_desk.get("section")
-        
-        self.desk_office = office
-        self.desk_department = dept
-        self.desk_section = section  # Populate the section field on the file
+        self.desk_office = user_desk.get("office")
+        self.desk_department = user_desk.get("department")
+        self.desk_section = user_desk.get("section")
         self.desk_designation = user_desk.get("designation")
+        
+        # MUST BE ADDED:
+        self.file_owner = frappe.session.user
+        self.current_custodian = frappe.session.user
+        
+        self.file_number = self.name
 
     def validate(self):
         if self.is_new():
@@ -290,9 +295,12 @@ def forward_file(file_name, recipient, remarks):
     doc.desk_section = rec_section
     doc.desk_designation = recipient_desk.get("designation")
 
+    # --- PERMISSION FIX: Auto-submit notes bypassing user role restrictions ---
     green_notes = frappe.get_all("Correspond Noting", filters={"file": file_name, "docstatus": 0, "status": "Green"}, pluck="name")
     for note_name in green_notes:
-        frappe.get_doc("Correspond Noting", note_name).submit()
+        note_doc = frappe.get_doc("Correspond Noting", note_name)
+        note_doc.flags.ignore_permissions = True
+        note_doc.submit()
 
     row_data = {
         "timestamp": frappe.utils.now_datetime(),
@@ -316,7 +324,7 @@ def forward_file(file_name, recipient, remarks):
             child_file.append("movement_log", child_log)
             child_file.save(ignore_permissions=True)
 
-    return {"status": "success"}    
+    return {"status": "success"}
 
 @frappe.whitelist()
 def attach_sub_file(master_file, child_file):

@@ -1,7 +1,6 @@
 {
  "actions": [],
  "allow_bulk_edit": 1,
- "allow_rename": 1,
  "creation": "2026-08-12 04:42:39.341128",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -11,15 +10,15 @@
   "file_number",
   "subject",
   "description",
-  "desk_department",
-  "desk_office",
   "desk_designation",
-  "desk_section",
+  "is_attached",
   "column_break_fszr",
   "file_owner",
   "current_custodian",
   "attached_to",
-  "is_attached",
+  "desk_department",
+  "desk_office",
+  "desk_section",
   "has_active_attachments",
   "office_view",
   "notings_display",
@@ -51,8 +50,7 @@
    "fieldname": "current_custodian",
    "fieldtype": "Link",
    "label": "Current Custodian",
-   "options": "User",
-   "read_only": 1
+   "options": "User"
   },
   {
    "default": "0",
@@ -65,8 +63,7 @@
    "fieldname": "attached_to",
    "fieldtype": "Link",
    "label": "Attached To",
-   "options": "Correspond File",
-   "read_only": 1
+   "options": "Correspond File"
   },
   {
    "fieldname": "movement_log",
@@ -85,8 +82,7 @@
    "fieldname": "file_owner",
    "fieldtype": "Link",
    "label": "File Owner",
-   "options": "User",
-   "read_only": 1
+   "options": "User"
   },
   {
    "fieldname": "file_viewer_tab_tab",
@@ -188,7 +184,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-22 07:06:07.785090",
+ "modified": "2026-08-22 17:38:54.760587",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond File",

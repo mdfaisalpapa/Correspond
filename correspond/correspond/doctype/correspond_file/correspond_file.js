@@ -5,9 +5,14 @@ frappe.ui.form.on('Correspond File', {
         // CREATION MODE: CLEAN CREATION FORM
         // =========================================================
         if (frm.is_new()) {
-            // 1. Hide system status flags (using the correct fieldname: has_active_attachments)
+            // 1. Hide system status flags
             frm.toggle_display('is_attached', false);
             frm.toggle_display('has_active_attachments', false);
+            
+            // Explicitly hide ownership and routing fields during creation
+            frm.toggle_display('file_owner', false);
+            frm.toggle_display('current_custodian', false);
+            frm.toggle_display('attached_to', false);
             
             // 2. Hide the Office View section & its display components
             frm.toggle_display('office_view', false);
@@ -51,6 +56,12 @@ frappe.ui.form.on('Correspond File', {
             // Restore visibility when viewing or editing an existing saved file
             frm.toggle_display('is_attached', true);
             frm.toggle_display('has_active_attachments', true);
+            
+            // Restore ownership and routing fields for saved files
+            frm.toggle_display('file_owner', true);
+            frm.toggle_display('current_custodian', true);
+            frm.toggle_display('attached_to', true);
+
             frm.toggle_display('office_view', true);
             frm.toggle_display('notings_display', true);
             frm.toggle_display('dak_display', true);
@@ -61,6 +72,13 @@ frappe.ui.form.on('Correspond File', {
             $('.form-tabs .nav-item').show();
             
             frm.set_df_property('file_number', 'read_only', 1);
+
+            // =========================================================
+            // UI SYNC FIX: Force visual field to match the actual ID
+            // =========================================================
+            if (frm.doc.file_number !== frm.doc.name) {
+                frm.set_value('file_number', frm.doc.name);
+            }
 
             // =========================================================
             // DEFERRED BREADCRUMB OVERRIDE (Only runs for saved files)
@@ -79,8 +97,10 @@ frappe.ui.form.on('Correspond File', {
                 }
             }, 300);
         }
+        
         // --- FRONTEND READ-ONLY LOCK FOR NON-CUSTODIANS ---
-        let is_custodian = (frm.doc.current_custodian === frappe.session.user);
+        // Added fallback: If custodian is blank due to an old glitch, trust the document owner
+        let is_custodian = (frm.doc.current_custodian === frappe.session.user || (!frm.doc.current_custodian && frm.doc.owner === frappe.session.user));
         let is_admin = frappe.user.has_role("System Manager");
 
         if (!frm.is_new() && !is_custodian && !is_admin) {
@@ -91,11 +111,23 @@ frappe.ui.form.on('Correspond File', {
             });
         }
 
+        // --- EXPLICITLY SHOW OWNERSHIP FIELDS FOR SAVED FILES ---
+        if (!frm.is_new()) {
+            frm.toggle_display('file_owner', true);
+            frm.toggle_display('current_custodian', true);
+            frm.toggle_display('attached_to', true);
+        }
+
         // --- 1. CHILD TABLE IMMUTABILITY ---
         frm.set_df_property('daks_table', 'cannot_add_rows', true);
         frm.set_df_property('daks_table', 'cannot_delete_rows', true);
+        
         frm.set_df_property('attached_files', 'cannot_add_rows', true);
         frm.set_df_property('attached_files', 'cannot_delete_rows', true);
+
+        // --- MOVEMENT LOG SECURITY ---
+        frm.set_df_property('movement_log', 'cannot_add_rows', true);
+        frm.set_df_property('movement_log', 'cannot_delete_rows', true);
 
         // --- 3. SERVER-SIDE BUTTON WRAPPERS ---
         let attached_grid = frm.fields_dict['attached_files'].grid;
