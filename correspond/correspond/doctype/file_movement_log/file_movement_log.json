@@ -11,7 +11,9 @@
   "moved_from",
   "moved_to",
   "action",
-  "remarks"
+  "remarks",
+  "action_office",
+  "action_designation"
  ],
  "fields": [
   {
@@ -46,13 +48,25 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Remarks"
+  },
+  {
+   "fieldname": "action_office",
+   "fieldtype": "Link",
+   "label": "Action Office",
+   "options": "Correspond Office"
+  },
+  {
+   "fieldname": "action_designation",
+   "fieldtype": "Link",
+   "label": "Action Designation",
+   "options": "Designation"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-18 05:03:57.759382",
+ "modified": "2026-08-22 03:57:42.562109",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "File Movement Log",

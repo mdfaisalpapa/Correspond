@@ -260,6 +260,18 @@ app_include_js = "/assets/correspond/js/workspace_lock.js"
 
 fixtures = [
     {
+        "dt": "Custom Field",
+        "filters": [
+            ["module", "=", "Correspond"]
+        ]
+    },
+    {
+        "dt": "Property Setter",
+        "filters": [
+            ["module", "=", "Correspond"]
+        ]
+    },
+    {
         "dt": "Server Script",
         "filters": [
             ["module", "=", "Correspond"] 
@@ -271,19 +283,24 @@ fixtures = [
             ["module", "=", "Correspond"]
         ]
     },
+    {
+        "dt": "Workspace",
+        "filters": [
+            ["module", "=", "Correspond"]
+        ]
+    },
     "Workflow",
     "Workflow State",
     "Workflow Action Master",
     {
         "dt": "Role", 
-        "filters": [["name", "in", ["Correspond User", "Correspond Registry Clerk"]]]
+        "filters": [["name", "in", ["Correspond User", "Correspond Registry Clerk", "Office Admin"]]]
     },
     {
         "dt": "List View Settings", 
         "filters": [["name", "=", "Inward Dak"]]
     }
 ]
-
 add_to_apps_screen = [
     {
         "name": "correspond",

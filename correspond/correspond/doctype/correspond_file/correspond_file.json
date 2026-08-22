@@ -10,7 +10,11 @@
   "file_details_section",
   "file_number",
   "subject",
-  "department",
+  "description",
+  "desk_department",
+  "desk_office",
+  "desk_designation",
+  "desk_section",
   "column_break_fszr",
   "file_owner",
   "current_custodian",
@@ -34,7 +38,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "File Number",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "subject",
@@ -47,25 +51,22 @@
    "fieldname": "current_custodian",
    "fieldtype": "Link",
    "label": "Current Custodian",
-   "options": "User"
-  },
-  {
-   "fieldname": "department",
-   "fieldtype": "Link",
-   "label": "Department",
-   "options": "Department"
+   "options": "User",
+   "read_only": 1
   },
   {
    "default": "0",
    "fieldname": "is_attached",
    "fieldtype": "Check",
-   "label": "Is Attached"
+   "label": "Is Attached",
+   "read_only": 1
   },
   {
    "fieldname": "attached_to",
    "fieldtype": "Link",
    "label": "Attached To",
-   "options": "Correspond File"
+   "options": "Correspond File",
+   "read_only": 1
   },
   {
    "fieldname": "movement_log",
@@ -84,7 +85,8 @@
    "fieldname": "file_owner",
    "fieldtype": "Link",
    "label": "File Owner",
-   "options": "User"
+   "options": "User",
+   "read_only": 1
   },
   {
    "fieldname": "file_viewer_tab_tab",
@@ -147,12 +149,46 @@
    "in_list_view": 1,
    "label": "Active Attachments",
    "read_only": 1
+  },
+  {
+   "fieldname": "desk_department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department",
+   "read_only": 1
+  },
+  {
+   "fieldname": "desk_office",
+   "fieldtype": "Link",
+   "label": "Office",
+   "options": "Correspond Office",
+   "read_only": 1
+  },
+  {
+   "fieldname": "desk_designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "desk_section",
+   "fieldtype": "Link",
+   "label": "Section",
+   "options": "Correspond Section",
+   "read_only": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-21 04:34:33.557091",
+ "modified": "2026-08-22 07:06:07.785090",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond File",

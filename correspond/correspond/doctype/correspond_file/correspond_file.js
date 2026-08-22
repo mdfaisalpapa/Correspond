@@ -2,22 +2,83 @@ frappe.ui.form.on('Correspond File', {
     refresh: function(frm) {
         
         // =========================================================
-        // DEFERRED BREADCRUMB OVERRIDE (Non-blocking)
+        // CREATION MODE: CLEAN CREATION FORM
         // =========================================================
-        setTimeout(() => {
-            let target_report = sessionStorage.getItem('correspond_source') || 'File Inbox';
-            if (typeof frappe.breadcrumbs !== 'undefined') {
-                frappe.breadcrumbs.all[frappe.get_route_str()] = {
-                    workspace: "Correspond",
-                    doctype: target_report,
-                    type: 'Report'
-                };
-                if (typeof frappe.breadcrumbs.update === 'function') {
-                    frappe.breadcrumbs.update();
+        if (frm.is_new()) {
+            // 1. Hide system status flags (using the correct fieldname: has_active_attachments)
+            frm.toggle_display('is_attached', false);
+            frm.toggle_display('has_active_attachments', false);
+            
+            // 2. Hide the Office View section & its display components
+            frm.toggle_display('office_view', false);
+            frm.toggle_display('notings_display', false);
+            frm.toggle_display('dak_display', false);
+            
+            // 3. Hide tabs via Frappe API
+            frm.toggle_display('attached_files_tab', false);
+            frm.toggle_display('movements_tab', false);
+            
+            // 4. Explicitly hide the tab headers in the UI DOM during creation
+            setTimeout(() => {
+                $('.form-tabs .nav-item').each(function() {
+                    let text = $(this).text().trim();
+                    if (text === 'Attached Files' || text === 'Movements') {
+                        $(this).hide();
+                    }
+                });
+            }, 100);
+            
+            // 5. Generate a live file number preview based on the user's active desk profile
+            frappe.db.get_value('Correspond User Profile', frappe.session.user, ['department', 'office', 'section'], function(user_profile) {
+                if (user_profile && user_profile.office) {
+                    frappe.db.get_value('Correspond Office', user_profile.office, 'office_abbr', function(office_res) {
+                        let office_abbr = office_res ? office_res.office_abbr : user_profile.office;
+                        let dept_abbr = user_profile.department ? user_profile.department.substring(0, 2).toUpperCase() : 'DE';
+                        
+                        frappe.db.get_value('Correspond Section', user_profile.section, 'section_abbr', function(sec_res) {
+                            let sec_abbr = sec_res ? sec_res.section_abbr : 'GENL';
+                            let year = new Date().getFullYear();
+                            
+                            let preview = `${dept_abbr}/${office_abbr}/${sec_abbr}/${year}/[Auto]`;
+                            frm.set_value('file_number', preview);
+                            frm.set_df_property('file_number', 'read_only', 1);
+                        });
+                    });
                 }
-            }
-        }, 300); // Runs after the form has safely mounted and rendered
+            });
+            
+        } else {
+            // Restore visibility when viewing or editing an existing saved file
+            frm.toggle_display('is_attached', true);
+            frm.toggle_display('has_active_attachments', true);
+            frm.toggle_display('office_view', true);
+            frm.toggle_display('notings_display', true);
+            frm.toggle_display('dak_display', true);
+            frm.toggle_display('attached_files_tab', true);
+            frm.toggle_display('movements_tab', true);
+            
+            // Show tab headers again
+            $('.form-tabs .nav-item').show();
+            
+            frm.set_df_property('file_number', 'read_only', 1);
 
+            // =========================================================
+            // DEFERRED BREADCRUMB OVERRIDE (Only runs for saved files)
+            // =========================================================
+            setTimeout(() => {
+                let target_report = sessionStorage.getItem('correspond_source') || 'File Inbox';
+                if (typeof frappe.breadcrumbs !== 'undefined') {
+                    frappe.breadcrumbs.all[frappe.get_route_str()] = {
+                        workspace: "Correspond",
+                        doctype: target_report,
+                        type: 'Report'
+                    };
+                    if (typeof frappe.breadcrumbs.update === 'function') {
+                        frappe.breadcrumbs.update();
+                    }
+                }
+            }, 300);
+        }
         // --- FRONTEND READ-ONLY LOCK FOR NON-CUSTODIANS ---
         let is_custodian = (frm.doc.current_custodian === frappe.session.user);
         let is_admin = frappe.user.has_role("System Manager");
