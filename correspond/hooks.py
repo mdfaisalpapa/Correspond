@@ -257,6 +257,8 @@ app_license = "mit"
 # ignore_translatable_strings_from = []
 # include js, css files in header of desk.html
 app_include_js = "/assets/correspond/js/workspace_lock.js"
+# app stylesheets
+app_include_css = "/assets/correspond/css/correspond.css"
 
 fixtures = [
     {

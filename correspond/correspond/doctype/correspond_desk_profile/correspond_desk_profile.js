@@ -1,7 +1,7 @@
 // Copyright (c) 2026, Mohammed Faisal and contributors
 // For license information, please see license.txt
 
-// frappe.ui.form.on("Correspond User Profile", {
+// frappe.ui.form.on("Correspond Desk Profile", {
 // 	refresh(frm) {
 
 // 	},

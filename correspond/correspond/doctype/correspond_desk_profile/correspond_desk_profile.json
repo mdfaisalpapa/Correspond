@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "field:user",
+ "autoname": "format:{office}/{department}/{section}/{designation}",
  "creation": "2026-08-22 04:49:48.337363",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -11,7 +11,8 @@
   "department",
   "office",
   "section",
-  "designation"
+  "designation",
+  "is_abolished"
  ],
  "fields": [
   {
@@ -52,16 +53,22 @@
    "label": "Section",
    "options": "Correspond Section",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_abolished",
+   "fieldtype": "Check",
+   "label": "Is Abolished"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-22 06:18:43.673446",
+ "modified": "2026-08-23 04:26:06.019476",
  "modified_by": "Administrator",
  "module": "Correspond",
- "name": "Correspond User Profile",
- "naming_rule": "By fieldname",
+ "name": "Correspond Desk Profile",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

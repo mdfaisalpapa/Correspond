@@ -1,10 +1,79 @@
 frappe.query_reports["File Inbox"] = {
     "filters": [],
     
+    "onload": function(report) {
+        // Add Bulk Forward button to the top right of the report
+        report.page.add_inner_button(__('Bulk Forward'), function() {
+            
+            let selected_files = [];
+            if (report.data) {
+                selected_files = report.data.filter(d => d.select === 1 || d.select === true).map(d => d.file_number);
+            }
+
+            if (selected_files.length === 0) {
+                frappe.msgprint({ title: 'Notice', message: 'Please select at least one file using the checkboxes.', indicator: 'orange' });
+                return;
+            }
+
+            let d = new frappe.ui.Dialog({
+                title: 'Bulk Forward Files',
+                fields: [
+                    {
+                        fieldname: 'help_text',
+                        fieldtype: 'HTML',
+                        options: `<div class="alert alert-info">You are about to securely transfer <b>${selected_files.length}</b> file(s) to a new desk.</div>`
+                    },
+                    {
+                        label: 'Forward To (Select Desk)',
+                        fieldname: 'recipient_profile',
+                        fieldtype: 'Link',
+                        options: 'Correspond Desk Profile',
+                        reqd: 1,
+                        get_query: () => {
+                            return {
+                                query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients'
+                            };
+                        }
+                    },
+                    {
+                        label: 'Remarks',
+                        fieldname: 'remarks',
+                        fieldtype: 'Small Text',
+                        reqd: 1,
+                        default: 'Files transferred due to desk reassignment/merger.'
+                    }
+                ],
+                primary_action_label: `Forward ${selected_files.length} File(s)`,
+                primary_action(values) {
+                    d.get_primary_btn().prop('disabled', true);
+                    
+                    frappe.call({
+                        method: 'correspond.correspond.doctype.correspond_file.correspond_file.bulk_forward_files',
+                        args: {
+                            file_names: JSON.stringify(selected_files),
+                            recipient_profile: values.recipient_profile,
+                            remarks: values.remarks
+                        },
+                        callback: function(res) {
+                            d.hide();
+                            if (!res.exc) {
+                                frappe.show_alert({
+                                    message: `Successfully forwarded ${res.message.count} files!`, 
+                                    indicator: 'green'
+                                });
+                                report.refresh();
+                            }
+                        }
+                    });
+                }
+            });
+            d.show();
+        });
+    },
+
     "formatter": function(value, row, column, data, default_formatter) {
         value = default_formatter(value, row, column, data);
 
-        // Make File Number and Subject clickable links that set the source
         if ((column.fieldname === "file_number" || column.fieldname === "subject") && data && data.file_number) {
             let display_text = column.fieldname === "file_number" ? data.file_number : (data.subject || '');
             return `<a href="/app/correspond-file/${encodeURIComponent(data.file_number)}" 
@@ -14,7 +83,6 @@ frappe.query_reports["File Inbox"] = {
                     </a>`;
         }
 
-        // Attachments Popup Format
         if (column.fieldname === "attachments" && data) {
             if (data.attachments) {
                 let files = data.attachments.split(',');

@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class CorrespondUserProfile(Document):
+class CorrespondDeskProfile(Document):
 	pass

@@ -4,7 +4,6 @@ frappe.query_reports["File Outbox"] = {
     "formatter": function(value, row, column, data, default_formatter) {
         value = default_formatter(value, row, column, data);
 
-        // 1. Make File Number and Subject clickable links for Outbox
         if ((column.fieldname === "file_number" || column.fieldname === "subject") && data && data.file_number) {
             let display_text = column.fieldname === "file_number" ? data.file_number : (data.subject || '');
             return `<a href="/app/correspond-file/${encodeURIComponent(data.file_number)}" 
@@ -14,7 +13,6 @@ frappe.query_reports["File Outbox"] = {
                     </a>`;
         }
 
-        // 2. Formatting for the "Attachments" Popup Link
         if (column.fieldname === "attachments" && data) {
             if (data.attachments) {
                 let files = data.attachments.split(',');
@@ -34,9 +32,6 @@ frappe.query_reports["File Outbox"] = {
     }
 };
 
-// ==========================================================
-// LIST DIALOG: Shows the list of attached files
-// ==========================================================
 window.show_outbox_attachments = function(encoded_files) {
     let files = JSON.parse(decodeURIComponent(encoded_files));
     
@@ -57,9 +52,6 @@ window.show_outbox_attachments = function(encoded_files) {
     d.show();
 };
 
-// ==========================================================
-// IFRAME DIALOG: Opens the actual file in a full-screen popup
-// ==========================================================
 window.open_iframe_file = function(docname) {
     let url = `/app/correspond-file/${encodeURIComponent(docname)}?view=iframe`;
     
@@ -79,9 +71,6 @@ window.open_iframe_file = function(docname) {
     dialog.show();
 };
 
-// ==========================================================
-// AUTO-REFRESH: Triggers when navigating from the sidebar
-// ==========================================================
 frappe.router.on('change', () => {
     let route = frappe.get_route();
     if (route[0] === 'query-report' && route[1] === 'File Outbox') {

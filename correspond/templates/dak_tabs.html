@@ -1,3 +1,10 @@
+{% if not is_snapshot %}
+<div style="padding: 10px 15px; background: #f8f9fa; border-bottom: 1px solid #d1d8dd; display: flex; gap: 10px; justify-content: flex-end; border-radius: 4px 4px 0 0;">
+    <button type="button" class="btn btn-default btn-sm custom-add-inward-btn"><i class="fa fa-download text-primary"></i> Add Inward Dak</button>
+    <button type="button" class="btn btn-default btn-sm custom-create-outward-btn"><i class="fa fa-upload text-danger"></i> Create Outgoing Dak</button>
+</div>
+{% endif %}
+<!-- Your existing dak tabs content below -->
 {# Define active tab states and badges based on the context passed from Python #}
 {% set drafts_badge = '<span class="badge badge-danger ml-1">' ~ draft_daks|length ~ '</span>' if draft_daks else '' %}
 {% set toc_a = ('active', 'show active') if active_tab == '#tab-toc' else ('', '') %}
