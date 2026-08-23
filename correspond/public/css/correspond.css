@@ -1,16 +1,32 @@
-/* --- COMPLETELY KILL SIDEBAR SPACE & FORCE FULL WIDTH INSTANTLY --- */
-.layout-side-section, .form-sidebar, .sidebar-container, .page-sidebar { 
+/* ==========================================================================
+   EOFFICE FULL WIDTH & UI LOCKDOWN
+   Scoped strictly to the Body tag to catch elements outside the main page container
+   ========================================================================== */
+
+/* --- COMPLETELY KILL SIDEBAR SPACE & FORCE FULL WIDTH --- */
+body[data-route^="Form/Correspond File"] .layout-side-section, 
+body[data-route^="Form/Correspond File"] .form-sidebar, 
+body[data-route^="Form/Correspond File"] .sidebar-container, 
+body[data-route^="Form/Correspond File"] .page-sidebar,
+body[data-route^="query-report/File Inbox"] .layout-side-section,
+body[data-route^="query-report/File Outbox"] .layout-side-section { 
     display: none !important; 
     width: 0 !important; 
     flex: 0 0 0 !important; 
     max-width: 0 !important;
 }
-.layout-main-section-wrapper, .layout-main-section, .page-form { 
+
+body[data-route^="Form/Correspond File"] .layout-main-section-wrapper, 
+body[data-route^="Form/Correspond File"] .layout-main-section, 
+body[data-route^="Form/Correspond File"] .page-form,
+body[data-route^="query-report/File Inbox"] .layout-main-section-wrapper,
+body[data-route^="query-report/File Outbox"] .layout-main-section-wrapper { 
     width: 100% !important; 
     max-width: 100% !important; 
     flex: 0 0 100% !important; 
 }
-.page-form .form-layout { 
+
+body[data-route^="Form/Correspond File"] .page-form .form-layout { 
     display: grid !important; 
     grid-template-columns: 1fr !important; 
     padding-right: 0px !important;
@@ -19,18 +35,37 @@
 }
 
 /* --- HIDE ONLY THE 3-DOT MENU (PRESERVE SAVE BUTTON) --- */
-.menu-btn-group { display: none !important; }
+body[data-route^="Form/Correspond File"] .menu-btn-group { 
+    display: none !important; 
+}
 
-/* Stretch inner content sections */
-.form-layout .form-section, [data-fieldname="office_view"], [data-fieldname="office_view"] .section-body, [data-fieldname="office_view"] .row { 
-    width: 100% !important; max-width: none !important; margin: 0 !important; box-sizing: border-box !important; 
-} 
-[data-fieldname="office_view"] .form-column { 
-    width: 50% !important; max-width: 50% !important; flex: 0 0 50% !important; box-sizing: border-box !important; padding: 0 10px !important;
-} 
-[data-fieldname="notings_display"], [data-fieldname="dak_display"], .eoffice-scroll-container { 
-    width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; 
+/* --- STRETCH INNER CONTENT SECTIONS --- */
+body[data-route^="Form/Correspond File"] .form-layout .form-section, 
+body[data-route^="Form/Correspond File"] [data-fieldname="office_view"], 
+body[data-route^="Form/Correspond File"] [data-fieldname="office_view"] .section-body, 
+body[data-route^="Form/Correspond File"] [data-fieldname="office_view"] .row { 
+    width: 100% !important; 
+    max-width: none !important; 
+    margin: 0 !important; 
+    box-sizing: border-box !important; 
 } 
 
-[data-fieldname="attached_files"] .link-btn { display: none !important; } 
-[data-fieldname="attached_files"] .grid-row-open { display: none !important; }
+body[data-route^="Form/Correspond File"] [data-fieldname="office_view"] .form-column { 
+    width: 50% !important; 
+    max-width: 50% !important; 
+    flex: 0 0 50% !important; 
+    box-sizing: border-box !important; 
+    padding: 0 10px !important;
+} 
+
+body[data-route^="Form/Correspond File"] [data-fieldname="notings_display"], 
+body[data-route^="Form/Correspond File"] [data-fieldname="dak_display"], 
+body[data-route^="Form/Correspond File"] .eoffice-scroll-container { 
+    width: 100% !important; 
+    max-width: 100% !important; 
+    box-sizing: border-box !important; 
+} 
+
+/* --- HIDE GRID BUTTONS FOR IMMUTABILITY --- */
+body[data-route^="Form/Correspond File"] [data-fieldname="attached_files"] .link-btn { display: none !important; } 
+body[data-route^="Form/Correspond File"] [data-fieldname="attached_files"] .grid-row-open { display: none !important; }
