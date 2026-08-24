@@ -9,8 +9,13 @@
  "field_order": [
   "office_name",
   "office_abbr",
-  "department",
-  "office_admin"
+  "default_department",
+  "office_admin",
+  "lft",
+  "rgt",
+  "is_group",
+  "old_parent",
+  "parent_correspond_office"
  ],
  "fields": [
   {
@@ -18,12 +23,6 @@
    "fieldtype": "Data",
    "label": "Office Name",
    "unique": 1
-  },
-  {
-   "fieldname": "department",
-   "fieldtype": "Link",
-   "label": "Department",
-   "options": "Department"
   },
   {
    "fieldname": "office_admin",
@@ -36,16 +35,60 @@
    "fieldtype": "Data",
    "label": "Office Abbr",
    "unique": 1
+  },
+  {
+   "fieldname": "lft",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Left",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "rgt",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Right",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_group",
+   "fieldtype": "Check",
+   "label": "Is Group"
+  },
+  {
+   "fieldname": "old_parent",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Old Parent",
+   "options": "Correspond Office"
+  },
+  {
+   "fieldname": "parent_correspond_office",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "label": "Parent Correspond Office",
+   "options": "Correspond Office"
+  },
+  {
+   "fieldname": "default_department",
+   "fieldtype": "Link",
+   "label": "Default Department",
+   "options": "Department"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_tree": 1,
  "links": [],
- "modified": "2026-08-22 06:03:27.225283",
+ "modified": "2026-08-24 07:00:24.906172",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond Office",
  "naming_rule": "By fieldname",
+ "nsm_parent_field": "parent_correspond_office",
  "owner": "Administrator",
  "permissions": [
   {

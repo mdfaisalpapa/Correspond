@@ -323,3 +323,11 @@ has_permission = {
     "Inward Dak": "correspond.permissions.has_inward_dak_permission",
     "Correspond File": "correspond.permissions.has_correspond_file_permission"
 }
+doc_events = {
+    "Department": {
+        "before_rename": "correspond.correspond.utils.block_rename"
+    },
+    "Designation": {
+        "before_rename": "correspond.correspond.utils.block_rename"
+    }
+}

@@ -9,7 +9,7 @@
  "field_order": [
   "section_name",
   "section_abbr",
-  "office"
+  "department"
  ],
  "fields": [
   {
@@ -28,18 +28,17 @@
    "unique": 1
   },
   {
-   "fieldname": "office",
+   "fieldname": "department",
    "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Office",
-   "options": "Correspond Office",
+   "label": "Department",
+   "options": "Department",
    "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-22 06:16:17.109051",
+ "modified": "2026-08-24 05:23:17.262764",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond Section",
