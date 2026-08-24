@@ -77,9 +77,33 @@
    "show_arrow": 0,
    "type": "Link",
    "url": "/app/correspond-file/new"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "list",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Dak Outbox",
+   "link_to": "Dak Outbox",
+   "link_type": "Report",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "list",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Dak Inbox",
+   "link_to": "Dak Inbox",
+   "link_type": "Report",
+   "show_arrow": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-08-21 15:24:11.464104",
+ "modified": "2026-08-24 16:36:22.929889",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond",

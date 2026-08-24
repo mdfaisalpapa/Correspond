@@ -484,6 +484,10 @@ def add_draft_dak(file_name, dak_data):
     doc = frappe.new_doc("Outward Dak")
     doc.primary_file = file_name
     doc.update(data)
+    
+    if not doc.get("sender"):
+        doc.sender = frappe.db.get_value("Correspond File", file_name, "current_custodian")
+        
     doc.insert(ignore_permissions=True)
     return {"status": "success"}
 
@@ -493,10 +497,16 @@ def update_draft_dak(file_name, dak_name, dak_data, submit_doc=False):
     data = json.loads(dak_data)
     dak = frappe.get_doc("Outward Dak", dak_name)
     dak.update(data)
+    
+    if not dak.get("sender"):
+        dak.sender = frappe.db.get_value("Correspond File", file_name, "current_custodian")
+        
     dak.save(ignore_permissions=True)
-    if str(submit_doc).lower() == 'true': dak.submit()
+    if str(submit_doc).lower() == 'true': 
+        dak.submit()
+        
     return {"status": "success"}
-
+    
 @frappe.whitelist()
 def get_reference_lookup_data(file_name):
     verify_active_custody(file_name) 

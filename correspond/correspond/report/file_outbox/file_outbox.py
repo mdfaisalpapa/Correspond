@@ -7,14 +7,12 @@ def execute(filters=None):
 
 def get_columns():
     return [
-        {"fieldname": "file_number", "label": "File Number", "fieldtype": "Link", "options": "Correspond File", "width": 220},
+        {"fieldname": "file_number", "label": "File No", "fieldtype": "Data", "width": 220},
         {"fieldname": "subject", "label": "Subject", "fieldtype": "Data", "width": 300},
-        {"fieldname": "action", "label": "Action", "fieldtype": "Data", "width": 100},
-        {"fieldname": "recipient_desk", "label": "Sent To Desk", "fieldtype": "Link", "options": "Correspond Desk Profile", "width": 220},
-        {"fieldname": "timestamp", "label": "Date & Time", "fieldtype": "Datetime", "width": 160},
-        {"fieldname": "sender_desk", "label": "Sent From (Your Desk)", "fieldtype": "Link", "options": "Correspond Desk Profile", "width": 180},
-        {"fieldname": "remarks", "label": "Remarks", "fieldtype": "Data", "width": 250},
-        {"fieldname": "attachments", "label": "Attachments", "fieldtype": "Data", "width": 120}
+        {"fieldname": "recipient_desk", "label": "Sent To", "fieldtype": "Data", "width": 300},
+        {"fieldname": "timestamp", "label": "Sent On", "fieldtype": "Datetime", "width": 160},
+        {"fieldname": "currently_with", "label": "Currently With", "fieldtype": "Data", "width": 300},
+        {"fieldname": "remarks", "label": "Remarks", "fieldtype": "Data", "width": 250}
     ]
 
 def get_data(filters):
@@ -25,18 +23,21 @@ def get_data(filters):
     if not auth_desks:
         return []
 
+    # Joins the current custodian user details to generate the "Currently With" column
     query = """
         SELECT 
             log.parent AS file_number,
             file.subject,
-            log.action,
-            log.recipient_desk,
+            CONCAT(IFNULL(ru.full_name, rdesk.user), ' - ', IFNULL(rdesk.desk_title, rdesk.name)) AS recipient_desk,
             log.timestamp,
-            log.sender_desk,
-            log.remarks,
-            (SELECT GROUP_CONCAT(linked_file SEPARATOR ',') FROM `tabAttached Files Log` WHERE parent = file.name AND status = 'Active') as attachments
+            CONCAT(IFNULL(cu.full_name, cdesk.user), ' - ', IFNULL(cdesk.desk_title, cdesk.name)) AS currently_with,
+            log.remarks
         FROM `tabFile Movement Log` log
         LEFT JOIN `tabCorrespond File` file ON log.parent = file.name
+        LEFT JOIN `tabCorrespond Desk Profile` rdesk ON log.recipient_desk = rdesk.name
+        LEFT JOIN `tabUser` ru ON rdesk.user = ru.name
+        LEFT JOIN `tabCorrespond Desk Profile` cdesk ON file.current_custodian = cdesk.name
+        LEFT JOIN `tabUser` cu ON cdesk.user = cu.name
         WHERE log.sender_desk IN %(auth_desks)s
         ORDER BY log.timestamp DESC
     """

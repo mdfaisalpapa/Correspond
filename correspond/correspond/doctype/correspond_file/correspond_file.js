@@ -431,12 +431,20 @@ function create_outward_dak_inline(frm) {
         fields: [
             { fieldtype: 'Section Break', label: 'Recipient Details' },
             { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: 'Internal User' },
-            { fieldname: 'internal_recipient', label: 'Internal Recipient (Desk)', fieldtype: 'Link', options: 'Correspond Desk Profile', depends_on: 'eval:doc.recipient_type=="Internal User"' },
+            { 
+                fieldname: 'internal_recipient', 
+                label: 'Internal Recipient (Desk)', 
+                fieldtype: 'Link', 
+                options: 'Correspond Desk Profile', 
+                depends_on: 'eval:doc.recipient_type=="Internal User"',
+                get_query: () => {
+                    return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' };
+                }
+            },
             { fieldname: 'receiver', label: 'Receiver Details', fieldtype: 'Small Text', depends_on: 'eval:doc.recipient_type=="External User"' },
             { fieldname: 'receiver_email', label: 'Receiver Email', fieldtype: 'Data', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"' },
             
             { fieldtype: 'Section Break', label: 'Content' },
-            { fieldname: 'sender', label: 'Sender Desk', fieldtype: 'Link', options: 'Correspond Desk Profile', default: frm.doc.current_custodian },
             { fieldname: 'subject', label: 'Subject', fieldtype: 'Data', reqd: 1 },
             { fieldname: 'reference', label: 'Reference', fieldtype: 'Data' },
             { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1 },
@@ -449,6 +457,8 @@ function create_outward_dak_inline(frm) {
         size: 'large', 
         primary_action_label: 'Create Draft',
         primary_action(values) { 
+            values.sender = frm.doc.current_custodian;
+
             frappe.call({ 
                 method: 'correspond.correspond.doctype.correspond_file.correspond_file.add_draft_dak', 
                 args: { file_name: frm.doc.name, dak_data: JSON.stringify(values) }, 
@@ -471,12 +481,21 @@ function edit_outward_dak_inline(frm, dak_name) {
                 fields: [
                     { fieldtype: 'Section Break', label: 'Recipient Details' },
                     { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: doc.recipient_type || 'Internal User' },
-                    { fieldname: 'internal_recipient', label: 'Internal Recipient (Desk)', fieldtype: 'Link', options: 'Correspond Desk Profile', depends_on: 'eval:doc.recipient_type=="Internal User"', default: doc.internal_recipient },
+                    { 
+                        fieldname: 'internal_recipient', 
+                        label: 'Internal Recipient (Desk)', 
+                        fieldtype: 'Link', 
+                        options: 'Correspond Desk Profile', 
+                        depends_on: 'eval:doc.recipient_type=="Internal User"', 
+                        default: doc.internal_recipient,
+                        get_query: () => {
+                            return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' };
+                        }
+                    },
                     { fieldname: 'receiver', label: 'Receiver Details', fieldtype: 'Small Text', depends_on: 'eval:doc.recipient_type=="External User"', default: doc.receiver },
                     { fieldname: 'receiver_email', label: 'Receiver Email', fieldtype: 'Data', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"', default: doc.receiver_email },
                     
                     { fieldtype: 'Section Break', label: 'Content' },
-                    { fieldname: 'sender', label: 'Sender Desk', fieldtype: 'Link', options: 'Correspond Desk Profile', default: doc.sender || frm.doc.current_custodian },
                     { fieldname: 'subject', label: 'Subject', fieldtype: 'Data', reqd: 1, default: doc.subject },
                     { fieldname: 'reference', label: 'Reference', fieldtype: 'Data', default: doc.reference },
                     { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1, default: doc.letter_body },
@@ -491,6 +510,8 @@ function edit_outward_dak_inline(frm, dak_name) {
                 primary_action_label: 'Approve & Finalize',
                 primary_action(values) { 
                     values.status = 'Approved'; 
+                    values.sender = frm.doc.current_custodian; 
+                    
                     frappe.confirm('Are you sure you want to Approve and Finalize this Dak? It cannot be edited afterward.', () => {
                         frappe.call({
                             method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak',
@@ -511,6 +532,7 @@ function edit_outward_dak_inline(frm, dak_name) {
                 secondary_action() {
                     let values = d.get_values();
                     if (!values) return; 
+                    values.sender = frm.doc.current_custodian;
                     
                     frappe.call({ 
                         method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak', 
@@ -532,7 +554,6 @@ function edit_outward_dak_inline(frm, dak_name) {
         }
     }});
 }
-
 function scroll_to_target(targetId) {
     let $target = $('#' + targetId);
     if ($target.length) {
