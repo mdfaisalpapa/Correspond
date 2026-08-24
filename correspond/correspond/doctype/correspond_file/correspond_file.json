@@ -10,15 +10,12 @@
   "file_number",
   "subject",
   "description",
-  "desk_designation",
   "is_attached",
   "column_break_fszr",
   "file_owner",
   "current_custodian",
+  "custodian_user",
   "attached_to",
-  "desk_department",
-  "desk_office",
-  "desk_section",
   "has_active_attachments",
   "office_view",
   "notings_display",
@@ -50,7 +47,8 @@
    "fieldname": "current_custodian",
    "fieldtype": "Link",
    "label": "Current Custodian",
-   "options": "User"
+   "options": "Correspond Desk Profile",
+   "read_only": 1
   },
   {
    "default": "0",
@@ -63,7 +61,8 @@
    "fieldname": "attached_to",
    "fieldtype": "Link",
    "label": "Attached To",
-   "options": "Correspond File"
+   "options": "Correspond File",
+   "read_only": 1
   },
   {
    "fieldname": "movement_log",
@@ -82,7 +81,8 @@
    "fieldname": "file_owner",
    "fieldtype": "Link",
    "label": "File Owner",
-   "options": "User"
+   "options": "Correspond Desk Profile",
+   "read_only": 1
   },
   {
    "fieldname": "file_viewer_tab_tab",
@@ -121,7 +121,8 @@
   {
    "fieldname": "movements_tab",
    "fieldtype": "Tab Break",
-   "label": "Movements"
+   "label": "Movements",
+   "read_only": 1
   },
   {
    "fieldname": "file_movement_history_section",
@@ -147,44 +148,24 @@
    "read_only": 1
   },
   {
-   "fieldname": "desk_department",
-   "fieldtype": "Link",
-   "label": "Department",
-   "options": "Department",
-   "read_only": 1
-  },
-  {
-   "fieldname": "desk_office",
-   "fieldtype": "Link",
-   "label": "Office",
-   "options": "Correspond Office",
-   "read_only": 1
-  },
-  {
-   "fieldname": "desk_designation",
-   "fieldtype": "Link",
-   "label": "Designation",
-   "options": "Designation",
-   "read_only": 1
-  },
-  {
-   "fieldname": "desk_section",
-   "fieldtype": "Link",
-   "label": "Section",
-   "options": "Correspond Section",
-   "read_only": 1
-  },
-  {
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description",
    "reqd": 1
+  },
+  {
+   "fetch_from": "current_custodian.user",
+   "fieldname": "custodian_user",
+   "fieldtype": "Link",
+   "label": "Custodian User",
+   "options": "User",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-22 17:38:54.760587",
+ "modified": "2026-08-24 14:59:59.780038",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond File",

@@ -6,123 +6,121 @@ import math
 import json
 import re
 
-def get_primary_desk(user):
-    """Returns the user's primary active desk profile (Used for stamping sender actions)"""
-    return frappe.db.get_value(
-        "Correspond Desk Profile", 
-        {"user": user, "is_abolished": 0}, 
-        ["name", "office", "department", "section", "designation"], 
-        as_dict=True,
-        order_by="creation asc"
-    ) or {}
-
-def get_authorized_desks(user):
-    """Returns ALL desk profiles assigned to this user (Primary + Additional Charge + Abolished Archives)"""
-    return frappe.get_all(
-        "Correspond Desk Profile", 
-        filters={"user": user}, 
-        fields=["name", "office", "department", "section", "designation"]
-    )
+def get_user_active_desks(user):
+    """Returns a list of active desk profile names assigned to the user"""
+    return frappe.get_all("Correspond Desk Profile", 
+                          filters={"user": user, "is_abolished": 0, "disabled": 0}, 
+                          pluck="name")
 
 @frappe.whitelist()
 def is_user_custodian(file_name):
-    """API for the frontend to check if the user holds the active desk for a file."""
+    """Checks if the user holds the specific desk that currently has the file."""
     user = frappe.session.user
     if "System Manager" in frappe.get_roles(user):
         return True
-    doc = frappe.get_value("Correspond File", file_name, ["desk_office", "desk_designation"], as_dict=True)
-    if not doc: return False
-    auth_desks = get_authorized_desks(user)
-    return any(d.office == doc.desk_office and d.designation == doc.desk_designation for d in auth_desks)
+    
+    current_desk = frappe.db.get_value("Correspond File", file_name, "current_custodian")
+    if not current_desk: return False
+    
+    desk_user = frappe.db.get_value("Correspond Desk Profile", current_desk, "user")
+    return desk_user == user
 
 class CorrespondFile(Document):
 
     def autoname(self):
         if self.is_new():
-            user_desk = get_primary_desk(frappe.session.user)
-            office = user_desk.get("office")
-            dept = user_desk.get("department")
-            section = user_desk.get("section")
+            if not self.file_owner:
+                # Fallback in case it's created via API/Import
+                primary_desk = frappe.db.get_value("Correspond Desk Profile", {"user": frappe.session.user, "disabled": 0, "is_abolished": 0}, "name", order_by="creation asc")
+                if not primary_desk: frappe.throw(_("No active Desk Profile found for current user."))
+                self.file_owner = primary_desk
+                
+            desk = frappe.get_doc("Correspond Desk Profile", self.file_owner)
             
-            if dept:
-                dept_name = frappe.db.get_value("Department", dept, "department_name") or dept
+            dept_abbr = "DE"
+            if desk.department:
+                dept_name = frappe.db.get_value("Department", desk.department, "department_name") or desk.department
                 dept_abbr = dept_name[:2].upper()
-            else:
-                dept_abbr = "DE"
             
-            if office:
-                office_data = frappe.db.get_value("Correspond Office", office, ["office_abbr", "department"], as_dict=True) or {}
-                office_abbr = office_data.get("office_abbr") or office
-            else:
-                office_abbr = "GEN"
+            office_abbr = "GEN"
+            if desk.office:
+                office_abbr = frappe.db.get_value("Correspond Office", desk.office, "office_abbr") or desk.office
             
-            if section:
-                section_abbr = frappe.db.get_value("Correspond Section", section, "section_abbr") or "GENL"
-            else:
-                section_abbr = "GENL"
+            section_abbr = "GENL"
+            if desk.section:
+                section_abbr = frappe.db.get_value("Correspond Section", desk.section, "section_abbr") or desk.section
             
             self.name = make_autoname(f"{dept_abbr}/{office_abbr}/{section_abbr}/.YYYY./.####")
             self.file_number = self.name
             
     def before_insert(self):
-        user_desk = get_primary_desk(frappe.session.user)
-        self.desk_office = user_desk.get("office")
-        self.desk_department = user_desk.get("department")
-        self.desk_section = user_desk.get("section")
-        self.desk_designation = user_desk.get("designation")
+        desk = frappe.get_doc("Correspond Desk Profile", self.file_owner)
+        self.desk_office = desk.office
+        self.desk_department = desk.department
+        self.desk_section = desk.section
+        self.desk_designation = desk.designation
         
-        self.file_owner = frappe.session.user
-        self.current_custodian = frappe.session.user
+        self.current_custodian = self.file_owner
         self.file_number = self.name
 
     def validate(self):
         if self.is_new():
             return
             
-        old_custodian = self.db_get('current_custodian')
-        if old_custodian and old_custodian != frappe.session.user:
-            auth_desks = get_authorized_desks(frappe.session.user)
-            is_new_incumbent = any(self.desk_office == d.office and self.desk_designation == d.designation for d in auth_desks)
-            is_admin = ("System Manager" in frappe.get_roles(frappe.session.user))
+        old_doc = self.get_doc_before_save()
+        if old_doc:
+            user = frappe.session.user
+            is_admin = ("System Manager" in frappe.get_roles(user))
+            user_desks = get_user_active_desks(user)
             
-            if not is_new_incumbent and not is_admin:
-                frappe.throw("Action Denied: You cannot modify a file that is no longer at your desk.")
+            # Verify they held the file before trying to edit/forward it
+            old_desk = old_doc.current_custodian
+            if old_desk not in user_desks and not is_admin:
+                if not self.flags.ignore_permissions:
+                    frappe.throw(_("Action Denied: You cannot modify a file that is no longer at your desk."))
+                    
+            # Lock Subject and Description if routed
+            if len(old_doc.get("movement_log", [])) > 0:
+                if self.subject != old_doc.subject:
+                    frappe.throw(_("The Subject cannot be changed because this file has already been routed."))
+                if self.description != old_doc.description:
+                    frappe.throw(_("The Description cannot be changed because this file has already been routed."))
 
     def has_permission(self, permtype="read", user=None, **kwargs):
-        if not user: user = frappe.session.user
+        # 1. ALWAYS respect the bypass flag for systemic backend saves (Fixes the 403 error)
+        if self.flags.ignore_permissions:
+            return True
             
+        if not user: user = frappe.session.user
         if "System Manager" in frappe.get_roles(user): return True
 
-        auth_desks = get_authorized_desks(user)
-        auth_desk_names = [d.name for d in auth_desks]
+        user_desks = get_user_active_desks(user)
         
-        if self.desk_office and any(d.office == self.desk_office for d in auth_desks):
-            office_admin = frappe.db.get_value("Correspond Office", self.desk_office, "office_admin")
-            if office_admin == user: return True
-            
         if permtype == "create":
             return any(r in ["System Manager", "Correspond User", "Correspond Registry Clerk"] for r in frappe.get_roles(user))
             
         if permtype == "write":
-            if self.is_new():
-                return any(r in ["System Manager", "Correspond User", "Correspond Registry Clerk"] for r in frappe.get_roles(user))
+            if self.is_new(): return True
+            if self.current_custodian in user_desks: return True
             
-            db_office = frappe.db.get_value("Correspond File", self.name, "desk_office")
-            db_desig = frappe.db.get_value("Correspond File", self.name, "desk_designation")
-            return any(d.office == db_office and d.designation == db_desig for d in auth_desks)
+            # Allow the save if they were the custodian BEFORE clicking forward
+            old_custodian = self.db_get("current_custodian")
+            if old_custodian and old_custodian in user_desks:
+                return True
+                
+            return False
             
         if permtype == "read":
             if self.is_new(): return True
+            if self.current_custodian in user_desks: return True
                 
-            if any(self.desk_office == d.office and self.desk_designation == d.designation for d in auth_desks):
-                return True
-                
-            if auth_desk_names:
-                format_strings = ','.join(['%s'] * len(auth_desk_names))
+            if user_desks:
+                format_strings = ','.join(['%s'] * len(user_desks))
                 has_history = frappe.db.sql(f"""
                     SELECT 1 FROM `tabFile Movement Log`
                     WHERE parent = %s AND (sender_desk IN ({format_strings}) OR recipient_desk IN ({format_strings}))
-                """, tuple([self.name] + auth_desk_names + auth_desk_names))
+                """, tuple([self.name] + user_desks + user_desks))
+                
                 if has_history: return True
                 
                 master_check = frappe.db.sql(f"""
@@ -130,50 +128,57 @@ class CorrespondFile(Document):
                     FROM `tabAttached Files Log` a
                     WHERE a.linked_file = %s
                     AND (
-                        EXISTS (SELECT 1 FROM `tabCorrespond File` m WHERE m.name = a.parent AND m.desk_office IN ({format_strings}) AND m.desk_designation IN ({format_strings}))
+                        EXISTS (SELECT 1 FROM `tabCorrespond File` m WHERE m.name = a.parent AND m.current_custodian IN ({format_strings}))
                         OR
                         EXISTS (SELECT 1 FROM `tabFile Movement Log` fml WHERE fml.parent = a.parent AND (fml.sender_desk IN ({format_strings}) OR fml.recipient_desk IN ({format_strings})))
                     )
-                """, tuple([self.name] + [d.office for d in auth_desks] + [d.designation for d in auth_desks] + auth_desk_names + auth_desk_names))
+                """, tuple([self.name] + user_desks + user_desks + user_desks))
                 if master_check: return True
                 
             return False
         return None
-
+        
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def get_forward_recipients(doctype, txt, searchfield, start, page_len, filters):
     return frappe.db.sql("""
-        SELECT name, CONCAT(user, ' (', designation, ' - ', section, ')') AS description
-        FROM `tabCorrespond Desk Profile`
-        WHERE user != %s 
-          AND ifnull(is_abolished, 0) = 0
-          AND (name LIKE %s OR user LIKE %s OR designation LIKE %s OR section LIKE %s)
+        SELECT 
+            desk.name, 
+            CONCAT(IFNULL(user.full_name, desk.user), ' - ', IFNULL(desk.desk_title, desk.name)) AS description
+        FROM `tabCorrespond Desk Profile` desk
+        LEFT JOIN `tabUser` user ON user.name = desk.user
+        WHERE desk.user != %s 
+          AND ifnull(desk.is_abolished, 0) = 0
+          AND ifnull(desk.disabled, 0) = 0
+          AND (
+              desk.name LIKE %s 
+              OR desk.desk_title LIKE %s 
+              OR desk.user LIKE %s 
+              OR user.full_name LIKE %s
+          )
+        ORDER BY user.full_name ASC
         LIMIT %s, %s
     """, (frappe.session.user, f"%{txt}%", f"%{txt}%", f"%{txt}%", f"%{txt}%", start, page_len))
-        
+    
+    
 @frappe.whitelist()
 def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
     user = frappe.session.user
     all_files = [file_name]
     note_page = int(note_page)
 
-    auth_desks = get_authorized_desks(user)
-    auth_desk_names = [d.name for d in auth_desks]
+    user_desks = get_user_active_desks(user)
 
     file_doc = frappe.get_doc("Correspond File", file_name)
-    is_custodian = any(file_doc.desk_office == d.office and file_doc.desk_designation == d.designation for d in auth_desks)
+    is_custodian = (file_doc.current_custodian in user_desks)
     
     is_master_custodian = False
     if file_doc.is_attached and file_doc.attached_to:
-        master_doc = frappe.db.get_value("Correspond File", file_doc.attached_to, ["desk_office", "desk_designation"], as_dict=True)
-        if master_doc and any(master_doc.desk_office == d.office and master_doc.desk_designation == d.designation for d in auth_desks):
+        master_doc_custodian = frappe.db.get_value("Correspond File", file_doc.attached_to, "current_custodian")
+        if master_doc_custodian in user_desks:
             is_master_custodian = True
 
     is_admin = ("System Manager" in frappe.get_roles(user))
-    if file_doc.desk_office and any(d.office == file_doc.desk_office for d in auth_desks):
-        if frappe.db.get_value("Correspond Office", file_doc.desk_office, "office_admin") == user:
-            is_admin = True
 
     has_full_access = is_custodian or is_master_custodian or is_admin
     is_historical = False
@@ -181,26 +186,26 @@ def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
 
     if not has_full_access:
         valid_cutoffs = []
-        if auth_desk_names:
-            format_strings = ','.join(['%s'] * len(auth_desk_names))
+        if user_desks:
+            format_strings = ','.join(['%s'] * len(user_desks))
             direct_log = frappe.db.sql(f"""
                 SELECT MAX(timestamp) FROM `tabFile Movement Log` 
                 WHERE parent = %s AND (sender_desk IN ({format_strings}) OR recipient_desk IN ({format_strings}))
-            """, tuple([file_name] + auth_desk_names + auth_desk_names))
+            """, tuple([file_name] + user_desks + user_desks))
             
             if direct_log and direct_log[0][0]:
                 valid_cutoffs.append(direct_log[0][0])
 
             master_records = frappe.db.sql(f"""
-                SELECT a.parent AS master_file, a.detached_on, m.desk_office, m.desk_designation,
+                SELECT a.parent AS master_file, a.detached_on, m.current_custodian,
                     (SELECT MAX(timestamp) FROM `tabFile Movement Log` WHERE parent = a.parent AND (sender_desk IN ({format_strings}) OR recipient_desk IN ({format_strings}))) AS user_master_timestamp
                 FROM `tabAttached Files Log` a
                 JOIN `tabCorrespond File` m ON a.parent = m.name
                 WHERE a.linked_file = %s
-            """, tuple(auth_desk_names + auth_desk_names + [file_name]), as_dict=True)
+            """, tuple(user_desks + user_desks + [file_name]), as_dict=True)
 
             for rec in master_records:
-                if any(rec.desk_office == d.office and rec.desk_designation == d.designation for d in auth_desks):
+                if rec.current_custodian in user_desks:
                     if rec.detached_on: valid_cutoffs.append(rec.detached_on)
                 elif rec.user_master_timestamp:
                     effective_cutoff = min(rec.detached_on, rec.user_master_timestamp) if rec.detached_on else rec.user_master_timestamp
@@ -226,7 +231,7 @@ def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
                     if val and val not in all_files:
                         all_files.append(val)
 
-    notes = frappe.get_all("Correspond Noting", filters={"file": ["in", all_files]}, fields=["name", "note_details", "file", "docstatus", "owner", "status", "creation"], order_by="creation asc")
+    notes = frappe.get_all("Correspond Noting", filters={"file": ["in", all_files]}, fields=["name", "note_details", "file", "docstatus", "owner", "status", "creation", "author_desk"], order_by="creation asc")
     
     draft_daks, final_daks = [], []
     outward_links = frappe.get_all("Outward Dak Linked File", filters={"file": ["in", all_files]}, pluck="parent")
@@ -307,20 +312,14 @@ def forward_file(file_name, recipient_profile, remarks):
     user = frappe.session.user
     doc = frappe.get_doc("Correspond File", file_name)
     
-    sender_desk = get_primary_desk(user)
+    sender_desk_name = doc.current_custodian
     target_desk = frappe.get_doc("Correspond Desk Profile", recipient_profile)
     
-    recipient_user = target_desk.user
-    rec_office = target_desk.office
-    rec_dept = target_desk.department
-    rec_section = target_desk.section
-    rec_desig = target_desk.designation
-    
-    doc.current_custodian = recipient_user
-    doc.desk_office = rec_office
-    doc.desk_department = rec_dept
-    doc.desk_section = rec_section
-    doc.desk_designation = rec_desig
+    doc.current_custodian = target_desk.name
+    doc.desk_office = target_desk.office
+    doc.desk_department = target_desk.department
+    doc.desk_section = target_desk.section
+    doc.desk_designation = target_desk.designation
 
     green_notes = frappe.get_all("Correspond Noting", filters={"file": file_name, "docstatus": 0, "status": "Green"}, pluck="name")
     for note_name in green_notes:
@@ -331,42 +330,43 @@ def forward_file(file_name, recipient_profile, remarks):
     row_data = {
         "timestamp": frappe.utils.now_datetime(),
         "moved_from": user, 
-        "moved_to": recipient_user, 
+        "moved_to": target_desk.user, 
         "action": "Forwarded", 
         "remarks": remarks,
-        "sender_desk": sender_desk.get("name"),
-        "recipient_desk": recipient_profile
+        "sender_desk": sender_desk_name,
+        "recipient_desk": target_desk.name
     }
 
     doc.append("movement_log", row_data)
+    doc.flags.ignore_permissions = True # <--- CRITICAL FIX
     doc.save(ignore_permissions=True)
-
+    
     for attached in doc.get("attached_files", []):
         if attached.status == "Active":
             child_file = frappe.get_doc("Correspond File", attached.linked_file)
-            child_file.current_custodian = recipient_user 
-            child_file.desk_office = rec_office
-            child_file.desk_department = rec_dept
-            child_file.desk_section = rec_section
-            child_file.desk_designation = rec_desig
+            child_file.current_custodian = target_desk.name 
+            child_file.desk_office = target_desk.office
+            child_file.desk_department = target_desk.department
+            child_file.desk_section = target_desk.section
+            child_file.desk_designation = target_desk.designation
             child_log = row_data.copy()
             child_log["remarks"] = f"[Moved with Master File {file_name}] {remarks}"
             child_file.append("movement_log", child_log)
+            
+            child_file.flags.ignore_permissions = True # <--- CRITICAL FIX
             child_file.save(ignore_permissions=True)
 
     return {"status": "success"}
-
+    
+    
 @frappe.whitelist()
 def bulk_forward_files(file_names, recipient_profile, remarks):
-    """Bulk forwards multiple files to a new desk profile."""
     files = json.loads(file_names)
     success_count = 0
-    
     for f_name in files:
         verify_active_custody(f_name)
         forward_file(f_name, recipient_profile, remarks)
         success_count += 1
-        
     return {"status": "success", "count": success_count}
 
 @frappe.whitelist()
@@ -374,9 +374,9 @@ def attach_sub_file(master_file, child_file):
     user = frappe.session.user
     master = frappe.get_doc("Correspond File", master_file)
     child = frappe.get_doc("Correspond File", child_file)
-    user_desks = get_authorized_desks(user)
+    user_desks = get_user_active_desks(user)
 
-    if not any(master.desk_office == d.office and master.desk_designation == d.designation for d in user_desks):
+    if master.current_custodian not in user_desks:
         if "System Manager" not in frappe.get_roles(user):
             frappe.throw("You cannot attach files to a folder that is not at your desk.")
             
@@ -392,18 +392,17 @@ def attach_sub_file(master_file, child_file):
     child.desk_designation = master.desk_designation
     child.save(ignore_permissions=True)
 
-    primary_desk = get_primary_desk(user)
     frappe.get_doc({
         "doctype": "File Movement Log", "parent": child_file, "parenttype": "Correspond File",
         "parentfield": "movement_log", "timestamp": frappe.utils.now_datetime(),
         "action": "Attached", "remarks": f"Attached to Master File: {master_file}", "moved_from": user,
-        "sender_desk": primary_desk.get("name"), "recipient_desk": primary_desk.get("name")
+        "sender_desk": master.current_custodian, "recipient_desk": master.current_custodian
     }).insert(ignore_permissions=True)
     
     master.append("movement_log", {
         "timestamp": frappe.utils.now_datetime(), "action": "Attached",
         "remarks": f"Attached Sub-file: {child_file}", "moved_from": user,
-        "sender_desk": primary_desk.get("name"), "recipient_desk": primary_desk.get("name")
+        "sender_desk": master.current_custodian, "recipient_desk": master.current_custodian
     })
 
     existing_row = next((r for r in master.attached_files if r.linked_file == child_file), None)
@@ -423,13 +422,12 @@ def detach_sub_files(master_file, child_files_json):
     user = frappe.session.user
     master = frappe.get_doc("Correspond File", master_file)
     child_files = json.loads(child_files_json)
-    user_desks = get_authorized_desks(user)
+    user_desks = get_user_active_desks(user)
 
-    if not any(master.desk_office == d.office and master.desk_designation == d.designation for d in user_desks):
+    if master.current_custodian not in user_desks:
         if "System Manager" not in frappe.get_roles(user):
             frappe.throw("You cannot detach files from a folder that is not at your desk.")
 
-    primary_desk = get_primary_desk(user)
     for row in master.attached_files:
         if row.linked_file in child_files and row.status == "Active":
             row.status = "Detached"
@@ -444,13 +442,13 @@ def detach_sub_files(master_file, child_files_json):
                 "doctype": "File Movement Log", "parent": row.linked_file, "parenttype": "Correspond File",
                 "parentfield": "movement_log", "timestamp": frappe.utils.now_datetime(),
                 "action": "Detached", "remarks": f"Detached from Master File: {master_file}", "moved_from": user,
-                "sender_desk": primary_desk.get("name"), "recipient_desk": primary_desk.get("name")
+                "sender_desk": master.current_custodian, "recipient_desk": master.current_custodian
             }).insert(ignore_permissions=True)
 
             master.append("movement_log", {
                 "timestamp": frappe.utils.now_datetime(), "action": "Detached",
                 "remarks": f"Detached Sub-file: {row.linked_file}", "moved_from": user,
-                "sender_desk": primary_desk.get("name"), "recipient_desk": primary_desk.get("name")
+                "sender_desk": master.current_custodian, "recipient_desk": master.current_custodian
             })
 
     master.has_active_attachments = 1 if any(r.status == "Active" for r in master.attached_files) else 0
@@ -460,16 +458,17 @@ def detach_sub_files(master_file, child_files_json):
 def verify_active_custody(file_name):
     user = frappe.session.user
     doc = frappe.get_doc("Correspond File", file_name)
-    auth_desks = get_authorized_desks(user)
+    user_desks = get_user_active_desks(user)
     
-    if not any(doc.desk_office == d.office and doc.desk_designation == d.designation for d in auth_desks):
+    if doc.current_custodian not in user_desks:
         if "System Manager" not in frappe.get_roles(user):
             frappe.throw("Action Denied: This file is no longer at any of your authorized desks.")
 
 @frappe.whitelist()
 def add_draft_note(file_name, note_details):
     verify_active_custody(file_name)
-    frappe.get_doc({"doctype": "Correspond Noting", "file": file_name, "note_details": note_details, "status": "Yellow"}).insert(ignore_permissions=True)
+    active_desk = frappe.db.get_value("Correspond File", file_name, "current_custodian")
+    frappe.get_doc({"doctype": "Correspond Noting", "file": file_name, "note_details": note_details, "status": "Yellow", "author_desk": active_desk}).insert(ignore_permissions=True)
     return {"status": "success"}
 
 @frappe.whitelist()

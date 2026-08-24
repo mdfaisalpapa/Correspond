@@ -10,7 +10,8 @@
   "amended_from",
   "file",
   "note_details",
-  "status"
+  "status",
+  "author_desk"
  ],
  "fields": [
   {
@@ -47,13 +48,20 @@
    "fieldtype": "Select",
    "label": "Status",
    "options": "Yellow\nGreen"
+  },
+  {
+   "fieldname": "author_desk",
+   "fieldtype": "Link",
+   "label": "Author Desk",
+   "options": "Correspond Desk Profile",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-22 17:32:15.832701",
+ "modified": "2026-08-24 11:31:57.432425",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond Noting",

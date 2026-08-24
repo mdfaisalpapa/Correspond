@@ -1,7 +1,7 @@
 frappe.ui.form.on('Correspond Desk Profile', {
     setup: function(frm) {
         
-        // 1. Filter the SECTION dropdown
+        // 1. Filter the SECTION dropdown to include specific department sections AND global sections
         frm.set_query("section", function() {
             let selected_dept = frm.doc.department;
             
@@ -11,7 +11,7 @@ frappe.ui.form.on('Correspond Desk Profile', {
 
             return {
                 filters: [
-                    ["Correspond Section", "department", "in", [selected_dept, "All Departments", ""]]
+                    ["Correspond Section", "department", "in", [selected_dept, "All Departments", "", null]]
                 ]
             };
         });

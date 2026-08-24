@@ -41,14 +41,22 @@ class OutwardDak(Document):
 
     def create_inward_dak(self, recipient, remarks):
         """Creates an Inward Dak entry for an internal system user"""
+        
+        # Look up the designation of the desk that sent this Dak
+        sender_desk_info = frappe.db.get_value("Correspond Desk Profile", self.sender, ["designation", "department"], as_dict=True)
+        if sender_desk_info:
+            dispatch_name = f"{sender_desk_info.designation} ({sender_desk_info.department})"
+        else:
+            dispatch_name = f"Internal Dispatch ({frappe.session.user})"
+
         inward = frappe.get_doc({
             "doctype": "Inward Dak",
             "subject": self.subject,
-            "sender_name": f"Internal Dispatch ({frappe.session.user})", # Mapped to your Sender Name field
-            "receipt_mode": "Internal Transfer", # Automatically sets the mode
-            "recipient": recipient,            # <--- MAPPED TO YOUR EXISTING FIELD
+            "sender_name": dispatch_name, # <--- Beautifully formatted desk name
+            "receipt_mode": "Internal Transfer", 
+            "recipient": recipient,       # <--- This perfectly accepts the Desk Profile now!
             "remarks": remarks,
-            "description": self.letter_body,     # Mapped to your Description field
+            "description": self.letter_body,     
             "status": "Draft"
         })
         inward.insert(ignore_permissions=True)

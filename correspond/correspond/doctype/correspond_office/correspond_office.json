@@ -1,7 +1,6 @@
 {
  "actions": [],
  "allow_bulk_edit": 1,
- "allow_rename": 1,
  "autoname": "field:office_abbr",
  "creation": "2026-08-22 03:49:18.770570",
  "doctype": "DocType",
@@ -83,7 +82,7 @@
  "index_web_pages_for_search": 1,
  "is_tree": 1,
  "links": [],
- "modified": "2026-08-24 07:00:24.906172",
+ "modified": "2026-08-24 11:54:00.666823",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond Office",
@@ -102,6 +101,16 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Correspond User",
+   "select": 1,
+   "share": 1
   }
  ],
  "row_format": "Dynamic",

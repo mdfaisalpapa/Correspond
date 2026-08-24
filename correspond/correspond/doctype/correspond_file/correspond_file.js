@@ -8,6 +8,7 @@ frappe.ui.form.on('Correspond File', {
             frm.toggle_display('is_attached', false);
             frm.toggle_display('has_active_attachments', false);
             
+            // Hide desk & ownership fields during creation
             frm.toggle_display('file_owner', false);
             frm.toggle_display('current_custodian', false);
             frm.toggle_display('attached_to', false);
@@ -19,6 +20,15 @@ frappe.ui.form.on('Correspond File', {
             frm.toggle_display('attached_files_tab', false);
             frm.toggle_display('movements_tab', false);
             
+            // Auto-select primary active desk in the background
+            if (!frm.doc.file_owner) {
+                frappe.db.get_value('Correspond Desk Profile', { user: frappe.session.user, disabled: 0, is_abolished: 0 }, 'name', function(r) {
+                    if (r && r.name) {
+                        frm.set_value('file_owner', r.name);
+                    }
+                });
+            }
+            
             setTimeout(() => {
                 $('.form-tabs .nav-item').each(function() {
                     let text = $(this).text().trim();
@@ -28,28 +38,22 @@ frappe.ui.form.on('Correspond File', {
                 });
             }, 100);
             
-            frappe.db.get_value('Correspond Desk Profile', frappe.session.user, ['department', 'office', 'section'], function(user_profile) {
-                if (user_profile && user_profile.office) {
-                    frappe.db.get_value('Correspond Office', user_profile.office, 'office_abbr', function(office_res) {
-                        let office_abbr = office_res ? office_res.office_abbr : user_profile.office;
-                        let dept_abbr = user_profile.department ? user_profile.department.substring(0, 2).toUpperCase() : 'DE';
-                        
-                        frappe.db.get_value('Correspond Section', user_profile.section, 'section_abbr', function(sec_res) {
-                            let sec_abbr = sec_res ? sec_res.section_abbr : 'GENL';
-                            let year = new Date().getFullYear();
-                            
-                            let preview = `${dept_abbr}/${office_abbr}/${sec_abbr}/${year}/[Auto]`;
-                            frm.set_value('file_number', preview);
-                            frm.set_df_property('file_number', 'read_only', 1);
-                        });
-                    });
-                }
-            });
-            
         } else {
             frm.toggle_display('is_attached', true);
-            frm.toggle_display('has_active_attachments', true);
             
+            // =========================================================
+            // NEW: DYNAMIC BANNERS & METADATA LOCK
+            // =========================================================
+            if (frm.doc.movement_log && frm.doc.movement_log.length > 0) {
+                frm.set_df_property('subject', 'read_only', 1);
+                frm.set_df_property('description', 'read_only', 1);
+                frm.set_intro('<i class="fa fa-lock" style="margin-right: 5px;"></i> <b>File Routed:</b> The Subject and Description are now permanently locked to preserve audit integrity.', 'yellow');
+                frm.disable_save();
+            } else {
+                frm.set_intro('<i class="fa fa-info-circle" style="margin-right: 5px;"></i> <b>Draft Stage:</b> You may edit the Subject and Description. They will become permanently locked once the file is forwarded.', 'blue');
+            }
+
+            frm.toggle_display('has_active_attachments', true);
             frm.toggle_display('file_owner', true);
             frm.toggle_display('current_custodian', true);
             frm.toggle_display('attached_to', true);
@@ -66,13 +70,17 @@ frappe.ui.form.on('Correspond File', {
 
             if (frm.doc.file_number !== frm.doc.name) {
                 frm.set_value('file_number', frm.doc.name);
-                frm.dirty(false); // <--- THIS CLEARS THE DIRTY FLAG INSTANTLY
+                frm.dirty(false);
             }
 
+            
             // =========================================================
-            // DEFERRED BREADCRUMB OVERRIDE
+            // DEFERRED BREADCRUMB & UI OVERRIDES
             // =========================================================
             setTimeout(() => {
+                // --- NEW: Hide standard Frappe Prev/Next form arrows ---
+                $('.form-page-controls .prev-doc, .form-page-controls .next-doc, .prev-doc, .next-doc').hide();
+
                 let target_report = sessionStorage.getItem('correspond_source') || 'File Inbox';
                 if (typeof frappe.breadcrumbs !== 'undefined') {
                     frappe.breadcrumbs.all[frappe.get_route_str()] = {
@@ -95,7 +103,6 @@ frappe.ui.form.on('Correspond File', {
             }, 300);
         } 
         
-        let is_custodian = (frm.doc.current_custodian === frappe.session.user || (!frm.doc.current_custodian && frm.doc.owner === frappe.session.user));
         let is_admin = frappe.user.has_role("System Manager");
 
         if (!frm.is_new() && !is_admin) {
@@ -104,6 +111,7 @@ frappe.ui.form.on('Correspond File', {
                 args: { file_name: frm.doc.name },
                 callback: function(r) {
                     if (!r.message) { 
+                        frm.disable_save(); // Explicitly block saving if they are not the custodian
                         $.each(frm.fields_dict, function(fieldname, field) {
                             if (field.df.fieldtype !== 'Table') {
                                 frm.set_df_property(fieldname, 'read_only', 1);
@@ -112,12 +120,6 @@ frappe.ui.form.on('Correspond File', {
                     }
                 }
             });
-        }
-
-        if (!frm.is_new()) {
-            frm.toggle_display('file_owner', true);
-            frm.toggle_display('current_custodian', true);
-            frm.toggle_display('attached_to', true);
         }
 
         frm.set_df_property('daks_table', 'cannot_add_rows', true);
@@ -135,19 +137,26 @@ frappe.ui.form.on('Correspond File', {
         let is_iframe = (window.self !== window.top) || window.location.href.includes('view=iframe');
         let is_subfile = (frm.doc.is_attached == 1 || frm.doc.attached_to);
 
-        if ((frm.is_new() || is_custodian || is_admin) && !is_subfile && !is_iframe) {
-            attached_grid.add_custom_button(__('Attach File'), () => {
-                frappe.prompt([{ label: 'Select File', fieldname: 'file_id', fieldtype: 'Link', options: 'Correspond File', reqd: 1, get_query: () => { return { filters: { name: ['!=', frm.doc.name], is_attached: 0 } }; } }], function(values) {
-                    frappe.call({ method: 'correspond.correspond.doctype.correspond_file.correspond_file.attach_sub_file', args: { master_file: frm.doc.name, child_file: values.file_id }, freeze: true, callback: function(r) { if (!r.exc) { frm.reload_doc(); } } });
-                }, __('Attach File'), __('Attach'));
-            });
+        let is_custodian = false;
+        if (!frm.is_new()) {
+            frappe.db.get_value('Correspond Desk Profile', frm.doc.current_custodian, 'user', function(res) {
+                is_custodian = (res && res.user === frappe.session.user);
+                
+                if ((is_custodian || is_admin) && !is_subfile && !is_iframe) {
+                    attached_grid.add_custom_button(__('Attach File'), () => {
+                        frappe.prompt([{ label: 'Select File', fieldname: 'file_id', fieldtype: 'Link', options: 'Correspond File', reqd: 1, get_query: () => { return { filters: { name: ['!=', frm.doc.name], is_attached: 0 } }; } }], function(values) {
+                            frappe.call({ method: 'correspond.correspond.doctype.correspond_file.correspond_file.attach_sub_file', args: { master_file: frm.doc.name, child_file: values.file_id }, freeze: true, callback: function(r) { if (!r.exc) { frm.reload_doc(); } } });
+                        }, __('Attach File'), __('Attach'));
+                    });
 
-            attached_grid.add_custom_button(__('Detach Selected'), () => {
-                let selected_rows = attached_grid.get_selected_children();
-                if (selected_rows.length === 0 || selected_rows.find(r => r.status !== 'Active')) { frappe.msgprint({ title: 'Invalid', message: 'Select at least one active file.', indicator: 'red' }); return; }
-                frappe.confirm(`Detach ${selected_rows.length} file(s)?`, () => {
-                    frappe.call({ method: 'correspond.correspond.doctype.correspond_file.correspond_file.detach_sub_files', args: { master_file: frm.doc.name, child_files_json: JSON.stringify(selected_rows.map(r => r.linked_file)) }, freeze: true, callback: function(r) { if (!r.exc) { frm.reload_doc(); } } });
-                });
+                    attached_grid.add_custom_button(__('Detach Selected'), () => {
+                        let selected_rows = attached_grid.get_selected_children();
+                        if (selected_rows.length === 0 || selected_rows.find(r => r.status !== 'Active')) { frappe.msgprint({ title: 'Invalid', message: 'Select at least one active file.', indicator: 'red' }); return; }
+                        frappe.confirm(`Detach ${selected_rows.length} file(s)?`, () => {
+                            frappe.call({ method: 'correspond.correspond.doctype.correspond_file.correspond_file.detach_sub_files', args: { master_file: frm.doc.name, child_files_json: JSON.stringify(selected_rows.map(r => r.linked_file)) }, freeze: true, callback: function(r) { if (!r.exc) { frm.reload_doc(); } } });
+                        });
+                    });
+                }
             });
         }
 
@@ -167,6 +176,8 @@ frappe.ui.form.on('Correspond File', {
             // --- IN-PANEL ACTION BUTTON BINDINGS ---
             $(frm.wrapper).on('click', '.custom-add-note-btn', function(e) { e.preventDefault(); add_note_inline(frm); });
             $(frm.wrapper).on('click', '.custom-forward-btn', function(e) { e.preventDefault(); trigger_forward_dialog(frm); });
+			$(frm.wrapper).on('click', '.custom-send-back-btn', function(e) {e.preventDefault(); 
+			trigger_send_back_dialog(frm); });
             $(frm.wrapper).on('click', '.custom-add-inward-btn', function(e) { e.preventDefault(); trigger_add_inward(frm); });
             $(frm.wrapper).on('click', '.custom-create-outward-btn', function(e) { e.preventDefault(); create_outward_dak_inline(frm); });
 
@@ -222,11 +233,33 @@ frappe.ui.form.on('Correspond File', {
         if (!frm.is_new()) { 
             load_eoffice_data(frm); 
         }
+    },
+
+    file_owner: function(frm) {
+        if (frm.is_new() && frm.doc.file_owner) {
+            frappe.db.get_value('Correspond Desk Profile', frm.doc.file_owner, ['department', 'office', 'section'], function(desk) {
+                if (desk && desk.office) {
+                    frappe.db.get_value('Correspond Office', desk.office, 'office_abbr', function(office_res) {
+                        let office_abbr = office_res ? office_res.office_abbr : desk.office;
+                        let dept_abbr = desk.department ? desk.department.substring(0, 2).toUpperCase() : 'DE';
+                        
+                        frappe.db.get_value('Correspond Section', desk.section, 'section_abbr', function(sec_res) {
+                            let sec_abbr = sec_res ? sec_res.section_abbr : 'GENL';
+                            let year = new Date().getFullYear();
+                            
+                            let preview = `${dept_abbr}/${office_abbr}/${sec_abbr}/${year}/[Auto]`;
+                            frm.set_value('file_number', preview);
+                            frm.set_df_property('file_number', 'read_only', 1);
+                        });
+                    });
+                }
+            });
+        }
     }
 });
 
 // ================================================================
-// CENTRAL SSR DATA LOADER (CLEANED)
+// CENTRAL SSR DATA LOADER
 // ================================================================
 function load_eoffice_data(frm) {
     frm.clear_custom_buttons(); 
@@ -234,7 +267,6 @@ function load_eoffice_data(frm) {
     setTimeout(() => {
         $('.menu-btn-group').hide();
         $('.actions-btn-group').hide();
-        $('.page-actions').hide();
     }, 50);
     
     frappe.call({
@@ -246,11 +278,9 @@ function load_eoffice_data(frm) {
             frm.dashboard.clear_headline();
 
             if (r.message.is_historical) {
-                // Completely remove any existing historical banners to prevent duplication
                 $(frm.wrapper).find('.custom-historical-banner').remove();
                 $(frm.wrapper).find('.form-message').remove();
                 
-                // Format timestamp to remove messy microseconds (keeping clean YYYY-MM-DD HH:MM:SS)
                 let clean_time = r.message.cutoff_date ? r.message.cutoff_date.split('.')[0] : '';
 
                 let msg = `
@@ -262,7 +292,6 @@ function load_eoffice_data(frm) {
                     </div>
                 `;
                 
-                // Prepend the banner right at the top of the form layout cleanly
                 if (!$(frm.wrapper).find('.custom-historical-banner').length) {
                     $(frm.wrapper).find('.form-layout').prepend(msg);
                 }
@@ -271,7 +300,6 @@ function load_eoffice_data(frm) {
             } else {
                 $(frm.wrapper).find('.custom-historical-banner').remove();
             }
-            // Directly inject server-rendered HTML (which already includes the toolbars)
             frm.get_field('notings_display').$wrapper.html(r.message.green_sheet_html);
             frm.get_field('dak_display').$wrapper.html(r.message.dak_tabs_html);
 
@@ -281,7 +309,7 @@ function load_eoffice_data(frm) {
 }
 
 // ================================================================
-// SECURE PYTHON ACTION WRAPPERS (DIALOG EXTRACTS)
+// ACTION WRAPPERS
 // ================================================================
 function trigger_forward_dialog(frm) {
     let d = new frappe.ui.Dialog({ 
@@ -317,7 +345,51 @@ function trigger_forward_dialog(frm) {
     }); 
     d.show(); 
 }
+function trigger_send_back_dialog(frm) {
+    let log = frm.doc.movement_log || [];
+    if (log.length === 0) {
+        frappe.msgprint({ title: 'Not Allowed', message: 'No previous sender found.', indicator: 'orange' });
+        return;
+    }
+    
+    // The last entry in the log represents how it got to the current desk
+    let last_movement = log[log.length - 1];
+    let previous_desk = last_movement.sender_desk;
 
+    let d = new frappe.ui.Dialog({ 
+        title: '<i class="fa fa-reply text-warning"></i> Send Back File', 
+        fields: [
+            { label: 'Returning To', fieldname: 'recipient_display', fieldtype: 'Data', default: previous_desk, read_only: 1 }, 
+            { label: 'Reason for Return', fieldname: 'remarks', fieldtype: 'Small Text', reqd: 1 }
+        ], 
+        primary_action_label: 'Send Back',
+        primary_action_classes: 'btn-warning',
+        primary_action(values) { 
+            frappe.call({ 
+                method: 'correspond.correspond.doctype.correspond_file.correspond_file.forward_file', 
+                args: { file_name: frm.doc.name, recipient_profile: previous_desk, remarks: values.remarks }, 
+                callback: function(res) { if (!res.exc) { d.hide(); load_eoffice_data(frm); } } 
+            }); 
+        } 
+    }); 
+    
+    // Fetch the desk title AND the user's full name for the UI
+    frappe.db.get_value('Correspond Desk Profile', previous_desk, ['desk_title', 'user'], r => {
+        if (r && r.desk_title) {
+            if (r.user) {
+                // Look up the actual human name from the User table
+                frappe.db.get_value('User', r.user, 'full_name', u => {
+                    let display_name = (u && u.full_name) ? u.full_name : r.user;
+                    d.set_value('recipient_display', `${display_name} - ${r.desk_title}`);
+                });
+            } else {
+                d.set_value('recipient_display', r.desk_title);
+            }
+        }
+    });
+    
+    d.show(); 
+}
 function trigger_add_inward(frm) {
     frappe.prompt([
         { label: 'Select Inward Dak', fieldname: 'dak_id', fieldtype: 'Link', options: 'Inward Dak', reqd: 1 }
@@ -359,12 +431,12 @@ function create_outward_dak_inline(frm) {
         fields: [
             { fieldtype: 'Section Break', label: 'Recipient Details' },
             { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: 'Internal User' },
-            { fieldname: 'internal_recipient', label: 'Internal Recipient', fieldtype: 'Link', options: 'User', depends_on: 'eval:doc.recipient_type=="Internal User"' },
+            { fieldname: 'internal_recipient', label: 'Internal Recipient (Desk)', fieldtype: 'Link', options: 'Correspond Desk Profile', depends_on: 'eval:doc.recipient_type=="Internal User"' },
             { fieldname: 'receiver', label: 'Receiver Details', fieldtype: 'Small Text', depends_on: 'eval:doc.recipient_type=="External User"' },
             { fieldname: 'receiver_email', label: 'Receiver Email', fieldtype: 'Data', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"' },
             
             { fieldtype: 'Section Break', label: 'Content' },
-            { fieldname: 'sender', label: 'Sender', fieldtype: 'Link', options: 'User', default: frappe.session.user },
+            { fieldname: 'sender', label: 'Sender Desk', fieldtype: 'Link', options: 'Correspond Desk Profile', default: frm.doc.current_custodian },
             { fieldname: 'subject', label: 'Subject', fieldtype: 'Data', reqd: 1 },
             { fieldname: 'reference', label: 'Reference', fieldtype: 'Data' },
             { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1 },
@@ -399,12 +471,12 @@ function edit_outward_dak_inline(frm, dak_name) {
                 fields: [
                     { fieldtype: 'Section Break', label: 'Recipient Details' },
                     { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: doc.recipient_type || 'Internal User' },
-                    { fieldname: 'internal_recipient', label: 'Internal Recipient', fieldtype: 'Link', options: 'User', depends_on: 'eval:doc.recipient_type=="Internal User"', default: doc.internal_recipient },
+                    { fieldname: 'internal_recipient', label: 'Internal Recipient (Desk)', fieldtype: 'Link', options: 'Correspond Desk Profile', depends_on: 'eval:doc.recipient_type=="Internal User"', default: doc.internal_recipient },
                     { fieldname: 'receiver', label: 'Receiver Details', fieldtype: 'Small Text', depends_on: 'eval:doc.recipient_type=="External User"', default: doc.receiver },
                     { fieldname: 'receiver_email', label: 'Receiver Email', fieldtype: 'Data', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"', default: doc.receiver_email },
                     
                     { fieldtype: 'Section Break', label: 'Content' },
-                    { fieldname: 'sender', label: 'Sender', fieldtype: 'Link', options: 'User', default: doc.sender || frappe.session.user },
+                    { fieldname: 'sender', label: 'Sender Desk', fieldtype: 'Link', options: 'Correspond Desk Profile', default: doc.sender || frm.doc.current_custodian },
                     { fieldname: 'subject', label: 'Subject', fieldtype: 'Data', reqd: 1, default: doc.subject },
                     { fieldname: 'reference', label: 'Reference', fieldtype: 'Data', default: doc.reference },
                     { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1, default: doc.letter_body },
@@ -532,7 +604,6 @@ function show_popup_reference_dialog(file_name, parent_dialog) {
 }
 
 function make_eoffice_full_width(frm) {
-    // We removed the dynamic $('head').append(...) because it's now handled by correspond.css
     const is_iframe_context = (window.self !== window.top) || window.location.href.includes('view=iframe');
 
     if (is_iframe_context) {
@@ -574,3 +645,40 @@ frappe.ui.form.on('Attached Files Log', {
         render_attached_files_ui(frm);
     }
 });
+
+
+// =========================================================================
+// BULLETPROOF FULL-WIDTH OVERRIDE
+// =========================================================================
+if (!$('#correspond-full-width-css').length) {
+    let full_width_css = `
+        <style id="correspond-full-width-css">
+            /* 1. Stretch the absolute outer page wrapper */
+            .page-container[data-page-route^="Form/Correspond File"] {
+                max-width: 98vw !important;
+                width: 100% !important;
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+            }
+            
+            .page-container[data-page-route^="Form/Correspond File"] .layout-main-section,
+            .page-container[data-page-route^="Form/Correspond File"] .form-layout {
+                max-width: 100% !important;
+                width: 100% !important;
+            }
+            
+            /* 2. Force inner form columns to span the entire screen */
+            .page-container[data-page-route^="Form/Correspond File"] .form-column {
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+            }
+
+            /* 3. Ensure child tables naturally fill the new space */
+            .page-container[data-page-route^="Form/Correspond File"] .frappe-control[data-fieldtype="Table"] {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        </style>
+    `;
+    $('head').append(full_width_css);
+}

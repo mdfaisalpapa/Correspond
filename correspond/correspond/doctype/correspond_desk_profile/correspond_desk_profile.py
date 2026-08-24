@@ -1,7 +1,23 @@
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 class CorrespondDeskProfile(Document):
+    def on_trash(self):
+        # 1. Check if this desk has ever sent or received a file in the File Movement Log
+        has_movements = (
+            frappe.db.exists("File Movement Log", {"sender_desk": self.name}) or
+            frappe.db.exists("File Movement Log", {"recipient_desk": self.name})
+        )
+        
+        # 2. Check if any file is currently sitting at this desk
+        has_active_files = frappe.db.exists("Correspond File", {"current_custodian": self.name})
+
+        if has_movements or has_active_files:
+            frappe.throw(
+                _("Cannot delete Desk Profile '{0}' because it contains active files or historical File Movement Logs. Please mark it as Disabled instead.").format(self.name)
+            )
+            
     def autoname(self):
         # 1. Clean the Department (Removes the " - KVC3" suffix automatically)
         clean_dept = self.department.split(" - ")[0].strip() if self.department else None
@@ -23,3 +39,29 @@ class CorrespondDeskProfile(Document):
         
         # 4. Join them together with slashes
         self.name = "/".join(filter(None, parts))
+    def before_save(self):
+        # 1. Gather human-readable labels from linked masters
+        office_name = frappe.db.get_value("Correspond Office", self.office, "office_name") or self.office
+        
+        # Fetch the human-readable department name from the Department DocType
+        dept_name = None
+        if self.department:
+            dept_name = frappe.db.get_value("Department", self.department, "department_name")
+        dept_label = dept_name or self.department or "General"
+        
+        section_name = frappe.db.get_value("Correspond Section", self.section, "section_name") or self.section
+        
+        # 2. Fetch the full designation name from the linked Designation DocType
+        full_desig = None
+        if self.designation:
+            full_desig = frappe.db.get_value("Designation", self.designation, "custom_designation_full_name")
+        
+        desig_label = full_desig or self.designation or "Desk"
+        
+        if self.seat_number:
+            desig_part = f"{desig_label.strip()}-{self.seat_number.strip()}"
+        else:
+            desig_part = desig_label.strip()
+        
+        # 3. Format cleanly with the correct Department Name
+        self.desk_title = f"{desig_part}, {section_name}, {dept_label}, {office_name}"

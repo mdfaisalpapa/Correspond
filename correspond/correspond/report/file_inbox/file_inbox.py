@@ -3,7 +3,10 @@ import frappe
 def execute(filters=None):
     user = frappe.session.user
     
-    auth_desks = frappe.get_all("Correspond Desk Profile", filters={"user": user}, fields=["name", "office", "designation"])
+    # Just pluck the names of the active desks (e.g., ["HQ/ACCT/FACAO"])
+    auth_desks = frappe.get_all("Correspond Desk Profile", 
+                                filters={"user": user, "is_abolished": 0, "disabled": 0}, 
+                                pluck="name")
     
     columns = [
         {"fieldname": "select", "label": "Select", "fieldtype": "Check", "width": 60},
@@ -18,17 +21,8 @@ def execute(filters=None):
     if not auth_desks:
         return columns, []
     
-    conditions = []
-    values = {}
-    for i, d in enumerate(auth_desks):
-        conditions.append(f"(df.desk_office = %(office_{i})s AND df.desk_designation = %(desig_{i})s)")
-        values[f"office_{i}"] = d.office
-        values[f"desig_{i}"] = d.designation
-    
-    where_clause = " OR ".join(conditions)
-
-    # --- PERMISSION FIX: Wrapped `select` in backticks below ---
-    data = frappe.db.sql(f"""
+    # The WHERE clause is now incredibly simple and fast!
+    data = frappe.db.sql("""
         SELECT 
             0 as `select`, 
             df.name as file_number, df.subject,
@@ -37,9 +31,9 @@ def execute(filters=None):
             (SELECT remarks FROM `tabFile Movement Log` WHERE parent = df.name AND action = 'Forwarded' ORDER BY timestamp DESC LIMIT 1) as remarks,
             (SELECT GROUP_CONCAT(linked_file SEPARATOR ',') FROM `tabAttached Files Log` WHERE parent = df.name AND status = 'Active') as attachments
         FROM `tabCorrespond File` df
-        WHERE ({where_clause})
+        WHERE df.current_custodian IN %(auth_desks)s
           AND ifnull(df.is_attached, 0) = 0
         ORDER BY COALESCE((SELECT timestamp FROM `tabFile Movement Log` WHERE parent = df.name AND action = 'Forwarded' ORDER BY timestamp DESC LIMIT 1), df.modified) DESC
-    """, values, as_dict=True)
+    """, {"auth_desks": auth_desks}, as_dict=True)
     
     return columns, data

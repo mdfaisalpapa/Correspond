@@ -163,14 +163,14 @@
    "fieldname": "recipient",
    "fieldtype": "Link",
    "label": "Recipient",
-   "options": "User"
+   "options": "Correspond Desk Profile"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-20 12:02:48.266481",
+ "modified": "2026-08-24 11:08:18.628779",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Inward Dak",

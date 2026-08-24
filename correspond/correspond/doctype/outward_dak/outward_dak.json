@@ -44,7 +44,7 @@
    "fieldtype": "Link",
    "hidden": 1,
    "label": "Sender",
-   "options": "User"
+   "options": "Correspond Desk Profile"
   },
   {
    "allow_in_quick_entry": 1,
@@ -125,7 +125,7 @@
    "fieldname": "internal_recipient",
    "fieldtype": "Link",
    "label": "Internal Recipient",
-   "options": "User"
+   "options": "Correspond Desk Profile"
   },
   {
    "fieldname": "cc_list",
@@ -149,7 +149,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-19 13:21:48.447306",
+ "modified": "2026-08-24 11:09:23.307947",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Outward Dak",
