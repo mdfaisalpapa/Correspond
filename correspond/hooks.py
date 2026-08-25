@@ -315,7 +315,8 @@ add_to_apps_screen = [
 # Apply SQL filters to list views
 permission_query_conditions = {
     "Inward Dak": "correspond.permissions.get_inward_dak_query",
-    "Correspond File": "correspond.permissions.get_correspond_file_query"
+    "Correspond File": "correspond.permissions.get_correspond_file_query",
+    "Outward Dak": "correspond.correspond.doctype.outward_dak.outward_dak.get_permission_query_conditions"
 }
 
 # Apply strict read/write security to the documents themselves

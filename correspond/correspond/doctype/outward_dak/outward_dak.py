@@ -56,3 +56,32 @@ class OutwardDak(Document):
             delayed=False,
             attachments=attachments
         )
+
+
+# =========================================================================
+# BACKEND SECURITY FAIL-SAFE (Added below the class)
+# =========================================================================
+def get_permission_query_conditions(user):
+    if not user: 
+        user = frappe.session.user
+        
+    # Let System Managers see everything
+    if "System Manager" in frappe.get_roles(user):
+        return ""
+
+    # Fetch ALL desk profiles currently assigned to this user
+    desks = frappe.get_all(
+        "Correspond Desk Profile", 
+        filters={"user": user}, 
+        pluck="name"
+    )
+    
+    # If the user currently has no desks assigned to them, they see nothing
+    if not desks:
+        return "1=0"
+        
+    # Format the desk array for the SQL IN() clause
+    escaped_desks = ", ".join([frappe.db.escape(d) for d in desks])
+    
+    # Strictly limit to the Desk Profile. 
+    return f"`tabOutward Dak`.sender IN ({escaped_desks})"
