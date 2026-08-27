@@ -1,3 +1,15 @@
+// ================================================================
+// GLOBAL HELPERS
+// ================================================================
+function get_elapsed_time_string(date_obj) {
+    if (!date_obj) return "00:00:00";
+    let diff = Math.floor((new Date() - date_obj) / 1000);
+    let h = Math.floor(diff / 3600);
+    let m = Math.floor((diff % 3600) / 60);
+    let s = diff % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 frappe.ui.form.on('Correspond File', {
     refresh: function(frm) {
         
@@ -73,12 +85,10 @@ frappe.ui.form.on('Correspond File', {
                 frm.dirty(false);
             }
 
-            
             // =========================================================
             // DEFERRED BREADCRUMB & UI OVERRIDES
             // =========================================================
             setTimeout(() => {
-                // --- NEW: Hide standard Frappe Prev/Next form arrows ---
                 $('.form-page-controls .prev-doc, .form-page-controls .next-doc, .prev-doc, .next-doc').hide();
 
                 let target_report = sessionStorage.getItem('correspond_source') || 'File Inbox';
@@ -111,7 +121,7 @@ frappe.ui.form.on('Correspond File', {
                 args: { file_name: frm.doc.name },
                 callback: function(r) {
                     if (!r.message) { 
-                        frm.disable_save(); // Explicitly block saving if they are not the custodian
+                        frm.disable_save(); 
                         $.each(frm.fields_dict, function(fieldname, field) {
                             if (field.df.fieldtype !== 'Table') {
                                 frm.set_df_property(fieldname, 'read_only', 1);
@@ -176,8 +186,7 @@ frappe.ui.form.on('Correspond File', {
             // --- IN-PANEL ACTION BUTTON BINDINGS ---
             $(frm.wrapper).on('click', '.custom-add-note-btn', function(e) { e.preventDefault(); add_note_inline(frm); });
             $(frm.wrapper).on('click', '.custom-forward-btn', function(e) { e.preventDefault(); trigger_forward_dialog(frm); });
-			$(frm.wrapper).on('click', '.custom-send-back-btn', function(e) {e.preventDefault(); 
-			trigger_send_back_dialog(frm); });
+			$(frm.wrapper).on('click', '.custom-send-back-btn', function(e) {e.preventDefault(); trigger_send_back_dialog(frm); });
             $(frm.wrapper).on('click', '.custom-add-inward-btn', function(e) { e.preventDefault(); trigger_add_inward(frm); });
             $(frm.wrapper).on('click', '.custom-create-outward-btn', function(e) { e.preventDefault(); create_outward_dak_inline(frm); });
 
@@ -203,11 +212,7 @@ frappe.ui.form.on('Correspond File', {
                     title: `<i class="fa fa-folder-open text-warning"></i> Viewing Attached File: <b>${row_doc.linked_file}</b>`,
                     size: 'extra-large', 
                     fields: [
-                        {
-                            fieldname: 'file_frame',
-                            fieldtype: 'HTML',
-                            options: `<div style="height: 82vh; width: 100%; overflow: hidden; border-radius: 4px;"><iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe></div>`
-                        }
+                        { fieldname: 'file_frame', fieldtype: 'HTML', options: `<div style="height: 82vh; width: 100%; overflow: hidden; border-radius: 4px;"><iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe></div>` }
                     ]
                 });
 
@@ -325,12 +330,7 @@ function trigger_forward_dialog(frm) {
                     return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' };
                 }
             }, 
-            {
-                label: 'Remarks', 
-                fieldname: 'remarks', 
-                fieldtype: 'Small Text', 
-                reqd: 1
-            }
+            { label: 'Remarks', fieldname: 'remarks', fieldtype: 'Small Text', reqd: 1 }
         ], 
         primary_action_label: 'Confirm & Forward', 
         primary_action(values) { 
@@ -345,6 +345,7 @@ function trigger_forward_dialog(frm) {
     }); 
     d.show(); 
 }
+
 function trigger_send_back_dialog(frm) {
     let log = frm.doc.movement_log || [];
     if (log.length === 0) {
@@ -352,7 +353,6 @@ function trigger_send_back_dialog(frm) {
         return;
     }
     
-    // The last entry in the log represents how it got to the current desk
     let last_movement = log[log.length - 1];
     let previous_desk = last_movement.sender_desk;
 
@@ -366,18 +366,16 @@ function trigger_send_back_dialog(frm) {
         primary_action_classes: 'btn-warning',
         primary_action(values) { 
             frappe.call({ 
-                method: 'correspond.correspond.doctype.correspond_file.correspond_file.forward_file', 
+                method: 'correspond.correspond.correspond_file.correspond_file.forward_file', 
                 args: { file_name: frm.doc.name, recipient_profile: previous_desk, remarks: values.remarks }, 
                 callback: function(res) { if (!res.exc) { d.hide(); load_eoffice_data(frm); } } 
             }); 
         } 
     }); 
     
-    // Fetch the desk title AND the user's full name for the UI
     frappe.db.get_value('Correspond Desk Profile', previous_desk, ['desk_title', 'user'], r => {
         if (r && r.desk_title) {
             if (r.user) {
-                // Look up the actual human name from the User table
                 frappe.db.get_value('User', r.user, 'full_name', u => {
                     let display_name = (u && u.full_name) ? u.full_name : r.user;
                     d.set_value('recipient_display', `${display_name} - ${r.desk_title}`);
@@ -390,6 +388,7 @@ function trigger_send_back_dialog(frm) {
     
     d.show(); 
 }
+
 function trigger_add_inward(frm) {
     frappe.prompt([
         { label: 'Select Inward Dak', fieldname: 'dak_id', fieldtype: 'Link', options: 'Inward Dak', reqd: 1 }
@@ -425,132 +424,476 @@ function edit_note_inline(frm, note_name) {
     });
 }
 
+// ================================================================
+// OUTWARD DAK CC TABLE CONFIGURATION
+// ================================================================
+function get_outward_dak_cc_fields() {
+    return [
+        { fieldtype: 'Select', fieldname: 'recipient_type', label: 'Recipient Type', options: 'Internal User\nExternal User', default: 'Internal User', in_list_view: 1, reqd: 1 },
+        { fieldtype: 'Link', fieldname: 'internal_desk_cc', label: 'Internal Desk CC', options: 'Correspond Desk Profile', depends_on: 'eval:doc.recipient_type=="Internal User"', in_list_view: 1, get_query: () => { return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' }; } },
+        { fieldtype: 'Data', fieldname: 'external_name', label: 'External Name', depends_on: 'eval:doc.recipient_type=="External User"', in_list_view: 1 },
+        { fieldtype: 'Data', fieldname: 'external_email', label: 'External Email', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"', in_list_view: 1 },
+        { fieldtype: 'Small Text', fieldname: 'cc_remarks', label: 'CC Remarks', in_list_view: 1 }
+    ];
+}
+
+// ================================================================
+// ATTACHMENT TABLE CONFIGURATION (SHARED HELPER)
+// ================================================================
+function get_outward_dak_attachment_fields() {
+    return [
+        { fieldtype: 'Attach', fieldname: 'attachment', label: 'Attachment File', in_list_view: 1, reqd: 1 }
+    ];
+}
+
+// ================================================================
+// CREATE OUTWARD DAK (BULLETPROOF DATA EXTRACTION)
+// ================================================================
 function create_outward_dak_inline(frm) {
+    let created_dak_name = null;
+    let is_saving_in_progress = false;
+    let auto_save_timer = null;
+    let last_save_time = null;
+    let ui_ticker = null;
+
     let d = new frappe.ui.Dialog({
         title: 'Create Outgoing Dak (Draft)',
+        onhide: () => {
+            if (ui_ticker) clearInterval(ui_ticker);
+        },
         fields: [
             { fieldtype: 'Section Break', label: 'Recipient Details' },
             { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: 'Internal User' },
-            { 
-                fieldname: 'internal_recipient', 
-                label: 'Internal Recipient (Desk)', 
-                fieldtype: 'Link', 
-                options: 'Correspond Desk Profile', 
-                depends_on: 'eval:doc.recipient_type=="Internal User"',
-                get_query: () => {
-                    return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' };
-                }
-            },
+            { fieldname: 'internal_recipient', label: 'Internal Recipient (Desk)', fieldtype: 'Link', options: 'Correspond Desk Profile', depends_on: 'eval:doc.recipient_type=="Internal User"', get_query: () => { return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' }; } },
             { fieldname: 'receiver', label: 'Receiver Details', fieldtype: 'Small Text', depends_on: 'eval:doc.recipient_type=="External User"' },
             { fieldname: 'receiver_email', label: 'Receiver Email', fieldtype: 'Data', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"' },
             
-            { fieldtype: 'Section Break', label: 'Content' },
-            { fieldname: 'subject', label: 'Subject', fieldtype: 'Data', reqd: 1 },
-            { fieldname: 'reference', label: 'Reference', fieldtype: 'Data' },
-            { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1 },
-            { fieldname: 'signature', label: 'Signature', fieldtype: 'Data', reqd: 1 },
+            { fieldtype: 'Section Break', label: 'Carbon Copy (CC)' },
+            { fieldname: 'cc_list', label: 'CC List', fieldtype: 'Table', options: 'Outward Dak CC', fields: get_outward_dak_cc_fields() },
             
-            { fieldtype: 'Section Break', label: 'Processing' },
-            { fieldname: 'status', label: 'Status', fieldtype: 'Select', options: 'Draft\nApproved', default: 'Draft' },
-            { fieldname: 'attachments', label: 'Attachments', fieldtype: 'Attach' }
+            { fieldtype: 'Section Break', label: 'Content' },
+            { fieldname: 'subject', label: 'Subject', fieldtype: 'Small Text', reqd: 1 },
+            { fieldname: 'reference', label: 'Reference', fieldtype: 'Small Text' },
+            { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1 },
+            
+            { fieldtype: 'Section Break', label: 'Attachments' },
+            { 
+                fieldname: 'attachments', 
+                label: 'Files', 
+                fieldtype: 'Table', 
+                options: 'Outward Dak Attachment', 
+                fields: get_outward_dak_attachment_fields() 
+            }
         ],
         size: 'large', 
         primary_action_label: 'Create Draft',
         primary_action(values) { 
-            values.sender = frm.doc.current_custodian;
+            let final_values = get_silent_values();
+            if (!final_values.subject || !final_values.letter_body) {
+                frappe.msgprint({ title: __('Missing Values'), indicator: 'orange', message: __('Please fill in the Subject and Letter Body.') });
+                return;
+            }
 
-            frappe.call({ 
-                method: 'correspond.correspond.doctype.correspond_file.correspond_file.add_draft_dak', 
-                args: { file_name: frm.doc.name, dak_data: JSON.stringify(values) }, 
-                freeze: true, 
-                callback: function(r) { 
-                    if (!r.exc) { d.hide(); frm.eoffice_active_tab = '#tab-drafts'; load_eoffice_data(frm); } 
-                } 
-            }); 
+            final_values.status = created_dak_name ? 'Approved' : 'Draft';
+            final_values.sender = frm.doc.current_custodian;
+
+            if (created_dak_name) {
+                frappe.confirm('Are you sure you want to Approve and Finalize this Dak? It cannot be edited afterward.', () => {
+                    frappe.call({
+                        method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak',
+                        args: { file_name: frm.doc.name, dak_name: created_dak_name, dak_data: JSON.stringify(final_values), submit_doc: true },
+                        freeze: true,
+                        callback: function(res) { if (!res.exc) { d.hide(); frm.eoffice_active_tab = '#tab-toc'; load_eoffice_data(frm); } }
+                    });
+                });
+            } else {
+                frappe.call({ 
+                    method: 'correspond.correspond.doctype.correspond_file.correspond_file.add_draft_dak', 
+                    args: { file_name: frm.doc.name, dak_data: JSON.stringify(final_values) }, 
+                    freeze: true, 
+                    callback: function(r) { 
+                        if (!r.exc) { 
+                            d.hide(); 
+                            frm.eoffice_active_tab = '#tab-drafts'; 
+                            load_eoffice_data(frm); 
+                        } 
+                    } 
+                });
+            }
         }
     });
+    
+    let $left_actions = $('<div style="margin-right: auto; display: flex; gap: 10px;"></div>');
+    let $close_btn = $(`<button class="btn btn-default btn-sm"><i class="fa fa-times"></i> Close</button>`);
+    let $save_btn = $(`<button class="btn btn-default btn-sm custom-save-btn"><i class="fa fa-save"></i> Save Draft</button>`);
+    
+    $left_actions.append($close_btn).append($save_btn);
+
+    let $auto_save_indicator = $(`<span class="auto-save-status text-muted" style="margin-right: 15px; font-size: 12px; align-self: center; display: inline-block; min-width: 280px; text-align: right;"><i class="fa fa-info-circle"></i> Auto-save ready</span>`);
+    
+    let $footer = d.$wrapper.find('.modal-footer');
+    $footer.prepend($left_actions);
+    $footer.find('.btn-primary').before($auto_save_indicator);
+
+    $close_btn.on('click', function(e) { e.preventDefault(); d.hide(); });
+    
+    $save_btn.on('click', function(e) {
+        e.preventDefault();
+        if (auto_save_timer) clearTimeout(auto_save_timer);
+        trigger_create_auto_save();
+        frappe.show_alert({message: __('Draft saved manually!'), indicator: 'green'});
+    });
+
     d.show();
+    d.$wrapper.find('.modal-dialog').css({'max-width': '80vw', 'width': '80vw'});
+
+    ui_ticker = setInterval(() => {
+        if (last_save_time && !is_saving_in_progress) {
+            let time_str = last_save_time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+            let elapsed = get_elapsed_time_string(last_save_time);
+            $auto_save_indicator.html(`<i class="fa fa-check text-success"></i> Auto-saved at ${time_str} (${elapsed} ago)`);
+        }
+    }, 1000);
+
+    // SAFE EXTRACTOR
+    function get_silent_values() {
+        let v = {};
+        let raw_vals = d.get_values() || {};
+        
+        // Grab standard inputs first
+        $.extend(v, raw_vals);
+
+        // Explicitly format child tables and remove temporary row IDs
+        ['cc_list', 'attachments'].forEach(fieldname => {
+            let field_obj = d.fields_dict[fieldname];
+            if (field_obj && field_obj.grid) {
+                let clean_data = [];
+                field_obj.grid.get_data().forEach(row => {
+                    let clean_row = $.extend({}, row);
+                    if (clean_row.name && (String(clean_row.name).startsWith('row') || String(clean_row.name).startsWith('new'))) {
+                        delete clean_row.name;
+                    }
+                    clean_data.push(clean_row);
+                });
+                v[fieldname] = clean_data;
+            }
+        });
+        return v;
+    }
+
+    function trigger_create_auto_save() {
+        let values = get_silent_values();
+        
+        if (!values.subject || !values.letter_body) {
+            $auto_save_indicator.html('<i class="fa fa-info-circle text-muted"></i> Fill Subject & Letter Body to save');
+            return;
+        }
+
+        values.status = 'Draft';
+        values.sender = frm.doc.current_custodian;
+
+        if (!created_dak_name && is_saving_in_progress) return;
+
+        is_saving_in_progress = true;
+        $auto_save_indicator.html('<i class="fa fa-spinner fa-spin text-warning"></i> Saving draft...');
+
+        if (!created_dak_name) {
+            frappe.call({
+                method: 'correspond.correspond.doctype.correspond_file.correspond_file.add_draft_dak',
+                args: { file_name: frm.doc.name, dak_data: JSON.stringify(values) },
+                callback: function(res) {
+                    if (res && res.message) {
+                        created_dak_name = res.message; 
+                        
+                        d.set_title('Edit Outgoing Dak');
+                        d.get_primary_btn().text('Approve & Finalize').removeClass('btn-primary').addClass('btn-success');
+                        
+                        if ($left_actions.find('.custom-delete-btn').length === 0) {
+                            let $delete_btn = $(`<button class="btn btn-danger btn-sm custom-delete-btn"><i class="fa fa-trash"></i> Delete Draft</button>`);
+                            $left_actions.append($delete_btn);
+                            
+                            $delete_btn.on('click', function(e) {
+                                e.preventDefault();
+                                frappe.confirm('Permanently delete this draft?', () => {
+                                    frappe.call({
+                                        method: 'correspond.correspond.doctype.correspond_file.correspond_file.delete_draft_dak',
+                                        args: { dak_name: created_dak_name },
+                                        callback: function(del_res) {
+                                            if (!del_res.exc) {
+                                                d.hide();
+                                                frappe.show_alert({message: __('Draft Deleted'), indicator: 'red'});
+                                                load_eoffice_data(frm);
+                                            }
+                                        }
+                                    });
+                                });
+                            });
+                        }
+                        
+                        last_save_time = new Date();
+                        is_saving_in_progress = false;
+                        
+                        let time_str = last_save_time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+                        let elapsed = get_elapsed_time_string(last_save_time);
+                        $auto_save_indicator.html(`<i class="fa fa-check text-success"></i> Auto-saved at ${time_str} (${elapsed} ago)`);
+                        
+                        load_eoffice_data(frm);
+                    } else {
+                        is_saving_in_progress = false;
+                        $auto_save_indicator.html('<i class="fa fa-exclamation-circle text-danger"></i> Failed to save');
+                    }
+                },
+                error: function() {
+                    is_saving_in_progress = false;
+                    $auto_save_indicator.html('<i class="fa fa-exclamation-circle text-danger"></i> Connection issue, retrying...');
+                }
+            });
+        } else {
+            frappe.call({
+                method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak',
+                args: { file_name: frm.doc.name, dak_name: created_dak_name, dak_data: JSON.stringify(values), submit_doc: false },
+                callback: function(res) {
+                    is_saving_in_progress = false;
+                    if (!res.exc) {
+                        last_save_time = new Date();
+                        
+                        let time_str = last_save_time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+                        let elapsed = get_elapsed_time_string(last_save_time);
+                        $auto_save_indicator.html(`<i class="fa fa-check text-success"></i> Auto-saved at ${time_str} (${elapsed} ago)`);
+                        
+                        load_eoffice_data(frm);
+                    } else {
+                        $auto_save_indicator.html('<i class="fa fa-exclamation-circle text-danger"></i> Auto-save paused');
+                    }
+                },
+                error: function() {
+                    is_saving_in_progress = false;
+                    $auto_save_indicator.html('<i class="fa fa-exclamation-circle text-danger"></i> Connection issue, retrying...');
+                }
+            });
+        }
+    }
+
+    d.$wrapper.on('input change', 'input, select, textarea', function() {
+        clearTimeout(auto_save_timer);
+        auto_save_timer = setTimeout(trigger_create_auto_save, 2500);
+    });
+
+    let quill_field = d.fields_dict['letter_body'];
+    if (quill_field && quill_field.quill) {
+        quill_field.quill.on('text-change', function() {
+            clearTimeout(auto_save_timer);
+            auto_save_timer = setTimeout(trigger_create_auto_save, 2500);
+        });
+    }
 }
 
+
+// ================================================================
+// EDIT OUTWARD DAK (BULLETPROOF DATA EXTRACTION)
+// ================================================================
 function edit_outward_dak_inline(frm, dak_name) {
     frappe.call({ method: 'frappe.client.get', args: { doctype: 'Outward Dak', name: dak_name }, callback: function(r) {
         if (r.message) {
             let doc = r.message;
+            let auto_save_timer = null;
+            let last_save_time = null;
+            let is_saving_in_progress = false;
+            let ui_ticker = null;
+
             let d = new frappe.ui.Dialog({
                 title: 'Edit Outgoing Dak',
+                onhide: () => {
+                    if (ui_ticker) clearInterval(ui_ticker);
+                },
                 fields: [
                     { fieldtype: 'Section Break', label: 'Recipient Details' },
                     { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: doc.recipient_type || 'Internal User' },
-                    { 
-                        fieldname: 'internal_recipient', 
-                        label: 'Internal Recipient (Desk)', 
-                        fieldtype: 'Link', 
-                        options: 'Correspond Desk Profile', 
-                        depends_on: 'eval:doc.recipient_type=="Internal User"', 
-                        default: doc.internal_recipient,
-                        get_query: () => {
-                            return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' };
-                        }
-                    },
+                    { fieldname: 'internal_recipient', label: 'Internal Recipient (Desk)', fieldtype: 'Link', options: 'Correspond Desk Profile', depends_on: 'eval:doc.recipient_type=="Internal User"', default: doc.internal_recipient, get_query: () => { return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' }; } },
                     { fieldname: 'receiver', label: 'Receiver Details', fieldtype: 'Small Text', depends_on: 'eval:doc.recipient_type=="External User"', default: doc.receiver },
                     { fieldname: 'receiver_email', label: 'Receiver Email', fieldtype: 'Data', options: 'Email', depends_on: 'eval:doc.recipient_type=="External User"', default: doc.receiver_email },
                     
-                    { fieldtype: 'Section Break', label: 'Content' },
-                    { fieldname: 'subject', label: 'Subject', fieldtype: 'Data', reqd: 1, default: doc.subject },
-                    { fieldname: 'reference', label: 'Reference', fieldtype: 'Data', default: doc.reference },
-                    { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1, default: doc.letter_body },
-                    { fieldname: 'signature', label: 'Signature', fieldtype: 'Data', reqd: 1, default: doc.signature },
+                    { fieldtype: 'Section Break', label: 'Carbon Copy (CC)' },
+                    { fieldname: 'cc_list', label: 'CC List', fieldtype: 'Table', options: 'Outward Dak CC', default: doc.cc_list || [], fields: get_outward_dak_cc_fields() },
                     
-                    { fieldtype: 'Section Break', label: 'Processing' },
-                    { fieldname: 'status', label: 'Status', fieldtype: 'Select', options: 'Draft\nApproved', default: doc.status || 'Draft' },
-                    { fieldname: 'attachments', label: 'Attachments', fieldtype: 'Attach', default: doc.attachments }
+                    { fieldtype: 'Section Break', label: 'Content' },
+                    { fieldname: 'subject', label: 'Subject', fieldtype: 'Small Text', reqd: 1, default: doc.subject },
+                    { fieldname: 'reference', label: 'Reference', fieldtype: 'Small Text', default: doc.reference },
+                    { fieldname: 'letter_body', label: 'Letter Body', fieldtype: 'Text Editor', reqd: 1, default: doc.letter_body },
+                    
+                    { fieldtype: 'Section Break', label: 'Attachments' },
+                    { 
+                        fieldname: 'attachments', 
+                        label: 'Files', 
+                        fieldtype: 'Table', 
+                        options: 'Outward Dak Attachment', 
+                        default: doc.attachments || [], 
+                        fields: get_outward_dak_attachment_fields() 
+                    }
                 ],
                 size: 'large', 
-                
                 primary_action_label: 'Approve & Finalize',
                 primary_action(values) { 
-                    values.status = 'Approved'; 
-                    values.sender = frm.doc.current_custodian; 
+                    let final_values = get_silent_values();
+                    final_values.status = 'Approved'; 
+                    final_values.sender = frm.doc.current_custodian; 
                     
                     frappe.confirm('Are you sure you want to Approve and Finalize this Dak? It cannot be edited afterward.', () => {
                         frappe.call({
                             method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak',
-                            args: { file_name: frm.doc.name, dak_name: dak_name, dak_data: JSON.stringify(values), submit_doc: true },
+                            args: { file_name: frm.doc.name, dak_name: dak_name, dak_data: JSON.stringify(final_values), submit_doc: true },
                             freeze: true,
                             callback: function(res) {
-                                if (!res.exc) { 
-                                    d.hide(); 
-                                    frm.eoffice_active_tab = '#tab-toc';
-                                    load_eoffice_data(frm); 
-                                }
+                                if (!res.exc) { d.hide(); frm.eoffice_active_tab = '#tab-toc'; load_eoffice_data(frm); }
                             }
                         });
                     });
-                },
-
-                secondary_action_label: 'Save Changes (Keep Draft)',
-                secondary_action() {
-                    let values = d.get_values();
-                    if (!values) return; 
-                    values.sender = frm.doc.current_custodian;
-                    
-                    frappe.call({ 
-                        method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak', 
-                        args: { file_name: frm.doc.name, dak_name: dak_name, dak_data: JSON.stringify(values), submit_doc: false }, 
-                        freeze: true, 
-                        callback: function(res) { 
-                            if (!res.exc) { 
-                                d.hide(); 
-                                frm.eoffice_active_tab = '#tab-drafts'; 
-                                load_eoffice_data(frm); 
-                            } 
-                        } 
-                    }); 
                 }
             });
 
             d.show();
-            d.$wrapper.find('.modal-footer .btn-primary').removeClass('btn-primary').addClass('btn-success');
+            d.$wrapper.find('.modal-dialog').css({'max-width': '80vw', 'width': '80vw'});
+            d.get_primary_btn().removeClass('btn-primary').addClass('btn-success');
+            
+            let $left_actions = $('<div style="margin-right: auto; display: flex; gap: 10px;"></div>');
+            let $close_btn = $(`<button class="btn btn-default btn-sm"><i class="fa fa-times"></i> Close</button>`);
+            let $save_btn = $(`<button class="btn btn-default btn-sm custom-save-btn"><i class="fa fa-save"></i> Save Draft</button>`);
+            let $preview_btn = $(`<button class="btn btn-default btn-sm custom-preview-btn"><i class="fa fa-print"></i> Print Preview</button>`);
+            
+            $left_actions.append($close_btn).append($save_btn).append($preview_btn);
+
+            if (doc.status === 'Draft' || doc.status === 'Drafting') {
+                let $delete_btn = $(`<button class="btn btn-danger btn-sm custom-delete-btn"><i class="fa fa-trash"></i> Delete Draft</button>`);
+                $left_actions.append($delete_btn);
+
+                $delete_btn.on('click', function(e) {
+                    e.preventDefault();
+                    frappe.confirm('Are you sure you want to permanently delete this draft?', () => {
+                        frappe.call({
+                            method: 'correspond.correspond.doctype.correspond_file.correspond_file.delete_draft_dak',
+                            args: { dak_name: dak_name },
+                            callback: function(res) {
+                                if (!res.exc) {
+                                    d.hide();
+                                    frappe.show_alert({message: __('Draft Deleted'), indicator: 'red'});
+                                    load_eoffice_data(frm);
+                                }
+                            }
+                        });
+                    });
+                });
+            }
+
+            d.$wrapper.find('.modal-footer').prepend($left_actions);
+            
+            $close_btn.on('click', function(e) { e.preventDefault(); d.hide(); });
+            
+            $save_btn.on('click', function(e) {
+                e.preventDefault();
+                if (auto_save_timer) clearTimeout(auto_save_timer);
+                trigger_auto_save();
+                frappe.show_alert({message: __('Draft saved manually!'), indicator: 'green'});
+            });
+
+            // SAFE EXTRACTOR FOR EDIT MODE
+            function get_silent_values() {
+                let v = {};
+                let raw_vals = d.get_values() || {};
+                $.extend(v, raw_vals);
+
+                ['cc_list', 'attachments'].forEach(fieldname => {
+                    let field_obj = d.fields_dict[fieldname];
+                    if (field_obj && field_obj.grid) {
+                        let clean_data = [];
+                        field_obj.grid.get_data().forEach(row => {
+                            let clean_row = $.extend({}, row);
+                            if (clean_row.name && (String(clean_row.name).startsWith('row') || String(clean_row.name).startsWith('new'))) {
+                                delete clean_row.name;
+                            }
+                            clean_data.push(clean_row);
+                        });
+                        v[fieldname] = clean_data;
+                    }
+                });
+                return v;
+            }
+
+            $preview_btn.on('click', function(e) {
+                e.preventDefault();
+                let values = get_silent_values();
+                if (!values.subject) return; 
+                values.sender = frm.doc.current_custodian;
+                values.status = doc.status || 'Draft';
+                
+                frappe.call({ 
+                    method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak', 
+                    args: { file_name: frm.doc.name, dak_name: dak_name, dak_data: JSON.stringify(values), submit_doc: false }, 
+                    freeze: true, 
+                    callback: function(res) { 
+                        if (!res.exc) { 
+                            let print_url = '/app/print/Outward%20Dak/' + encodeURIComponent(dak_name) + '?format=Official%20Letter%20Format';
+                            window.open(print_url, '_blank');
+                        } 
+                    } 
+                });
+            });
+
+            let $auto_save_indicator = $(`<span class="auto-save-status text-muted" style="margin-right: 15px; font-size: 12px; align-self: center; display: inline-block; min-width: 250px; text-align: right;"><i class="fa fa-info-circle"></i> Auto-save ready</span>`);
+            d.$wrapper.find('.standard-actions').prepend($auto_save_indicator);
+
+            ui_ticker = setInterval(() => {
+                if (last_save_time && !is_saving_in_progress) {
+                    let time_str = last_save_time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+                    let elapsed = get_elapsed_time_string(last_save_time);
+                    $auto_save_indicator.html(`<i class="fa fa-check text-success"></i> Auto-saved at ${time_str} (${elapsed} ago)`);
+                }
+            }, 1000);
+
+            function trigger_auto_save() {
+                let values = get_silent_values();
+                if (!values.subject) return;
+                
+                values.sender = frm.doc.current_custodian;
+                values.status = doc.status || 'Draft';
+
+                is_saving_in_progress = true;
+                $auto_save_indicator.html('<i class="fa fa-spinner fa-spin text-warning"></i> Saving draft...');
+
+                frappe.call({
+                    method: 'correspond.correspond.doctype.correspond_file.correspond_file.update_draft_dak',
+                    args: { file_name: frm.doc.name, dak_name: dak_name, dak_data: JSON.stringify(values), submit_doc: false },
+                    callback: function(res) {
+                        is_saving_in_progress = false;
+                        if (!res.exc) {
+                            last_save_time = new Date();
+                            let time_str = last_save_time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
+                            let elapsed = get_elapsed_time_string(last_save_time);
+                            $auto_save_indicator.html(`<i class="fa fa-check text-success"></i> Auto-saved at ${time_str} (${elapsed} ago)`);
+                            
+                            load_eoffice_data(frm);
+                        } else {
+                            $auto_save_indicator.html('<i class="fa fa-exclamation-circle text-danger"></i> Auto-save paused');
+                        }
+                    },
+                    error: function() {
+                        is_saving_in_progress = false;
+                        $auto_save_indicator.html('<i class="fa fa-exclamation-circle text-danger"></i> Connection issue, retrying...');
+                    }
+                });
+            }
+
+            d.$wrapper.on('input change', 'input, select, textarea', function() {
+                clearTimeout(auto_save_timer);
+                auto_save_timer = setTimeout(trigger_auto_save, 2000);
+            });
+
+            let quill_field = d.fields_dict['letter_body'];
+            if (quill_field && quill_field.quill) {
+                quill_field.quill.on('text-change', function() {
+                    clearTimeout(auto_save_timer);
+                    auto_save_timer = setTimeout(trigger_auto_save, 2000);
+                });
+            }
         }
     }});
 }
@@ -610,10 +953,7 @@ function show_popup_reference_dialog(file_name, parent_dialog) {
                 let selected_file_obj = data.file_opts.find(f => f.label === target_label);
                 let target_id = selected_file_obj ? selected_file_obj.value : file_name;
                 
-                let filtered = cat === 'Note' 
-                    ? data.notes.filter(n => n.file === target_id) 
-                    : data.daks.filter(d => d.file === target_id);
-
+                let filtered = cat === 'Note' ? data.notes.filter(n => n.file === target_id) : data.daks.filter(d => d.file === target_id);
                 let opts = filtered.length > 0 ? filtered : [{label: 'No records found', value: ''}];
                 ref_d.set_df_property('selected_doc', 'options', opts);
             }
@@ -634,6 +974,7 @@ function make_eoffice_full_width(frm) {
         }, 100);
     }
 }
+
 function render_attached_files_ui(frm) {
     if (!frm.fields_dict['attached_files'] || !frm.fields_dict['attached_files'].grid) return;
     
@@ -659,14 +1000,9 @@ function render_attached_files_ui(frm) {
 }
 
 frappe.ui.form.on('Attached Files Log', {
-    attached_files_add: function(frm) {
-        render_attached_files_ui(frm);
-    },
-    attached_files_remove: function(frm) {
-        render_attached_files_ui(frm);
-    }
+    attached_files_add: function(frm) { render_attached_files_ui(frm); },
+    attached_files_remove: function(frm) { render_attached_files_ui(frm); }
 });
-
 
 // =========================================================================
 // BULLETPROOF FULL-WIDTH OVERRIDE
@@ -674,27 +1010,21 @@ frappe.ui.form.on('Attached Files Log', {
 if (!$('#correspond-full-width-css').length) {
     let full_width_css = `
         <style id="correspond-full-width-css">
-            /* 1. Stretch the absolute outer page wrapper */
             .page-container[data-page-route^="Form/Correspond File"] {
                 max-width: 98vw !important;
                 width: 100% !important;
                 padding-left: 20px !important;
                 padding-right: 20px !important;
             }
-            
             .page-container[data-page-route^="Form/Correspond File"] .layout-main-section,
             .page-container[data-page-route^="Form/Correspond File"] .form-layout {
                 max-width: 100% !important;
                 width: 100% !important;
             }
-            
-            /* 2. Force inner form columns to span the entire screen */
             .page-container[data-page-route^="Form/Correspond File"] .form-column {
                 max-width: 100% !important;
                 flex: 0 0 100% !important;
             }
-
-            /* 3. Ensure child tables naturally fill the new space */
             .page-container[data-page-route^="Form/Correspond File"] .frappe-control[data-fieldtype="Table"] {
                 width: 100% !important;
                 max-width: 100% !important;
@@ -702,4 +1032,15 @@ if (!$('#correspond-full-width-css').length) {
         </style>
     `;
     $('head').append(full_width_css);
+}
+
+// =========================================================================
+// FIX AWESOMPLETE DROPDOWN POSITIONING INSIDE DIALOGS
+// =========================================================================
+if (!$('#dialog-dropdown-fix-css').length) {
+    $('head').append(`
+        <style id="dialog-dropdown-fix-css">
+            .modal-content .awesomplete > ul { z-index: 10550 !important; }
+        </style>
+    `);
 }

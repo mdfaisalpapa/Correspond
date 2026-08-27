@@ -18,7 +18,6 @@
   "subject",
   "reference",
   "letter_body",
-  "signature",
   "attachments",
   "status",
   "linked_files",
@@ -28,7 +27,7 @@
   {
    "allow_in_quick_entry": 1,
    "fieldname": "subject",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Subject",
    "reqd": 1
   },
@@ -55,7 +54,7 @@
   {
    "allow_in_quick_entry": 1,
    "fieldname": "reference",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Reference"
   },
   {
@@ -67,16 +66,10 @@
   },
   {
    "allow_in_quick_entry": 1,
-   "fieldname": "signature",
-   "fieldtype": "Data",
-   "label": "Signature",
-   "reqd": 1
-  },
-  {
-   "allow_in_quick_entry": 1,
    "fieldname": "attachments",
-   "fieldtype": "Attach",
-   "label": "Attachments"
+   "fieldtype": "Table",
+   "label": "Attachments",
+   "options": "Outward Dak Attachment"
   },
   {
    "allow_on_submit": 1,
@@ -148,7 +141,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-24 16:38:33.775167",
+ "modified": "2026-08-25 15:40:39.974893",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Outward Dak",

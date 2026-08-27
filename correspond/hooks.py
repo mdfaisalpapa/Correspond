@@ -301,6 +301,12 @@ fixtures = [
     {
         "dt": "List View Settings", 
         "filters": [["name", "=", "Inward Dak"]]
+    },
+    {
+        "dt": "Print Format",
+        "filters": [
+            ["module", "=", "Correspond"]
+        ]
     }
 ]
 add_to_apps_screen = [
@@ -316,14 +322,14 @@ add_to_apps_screen = [
 permission_query_conditions = {
     "Inward Dak": "correspond.permissions.get_inward_dak_query",
     "Correspond File": "correspond.permissions.get_correspond_file_query",
-    "Outward Dak": "correspond.correspond.doctype.outward_dak.outward_dak.get_permission_query_conditions"
+    "Outward Dak": "correspond.correspond.doctype.outward_dak.outward_dak.get_permission_query_conditions",
+    "Correspond Desk Profile": "correspond.correspond.doctype.correspond_desk_profile.correspond_desk_profile.get_permission_query_conditions"
 }
 
-# Apply strict read/write security to the documents themselves
 has_permission = {
-    "Inward Dak": "correspond.permissions.has_inward_dak_permission",
-    "Correspond File": "correspond.permissions.has_correspond_file_permission"
+    "Correspond Desk Profile": "correspond.correspond.doctype.correspond_desk_profile.correspond_desk_profile.has_permission"
 }
+
 doc_events = {
     "Department": {
         "before_rename": "correspond.correspond.utils.block_rename"

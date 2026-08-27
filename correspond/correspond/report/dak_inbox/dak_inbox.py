@@ -25,7 +25,8 @@ def execute(filters=None):
             CONCAT(IFNULL(sender_name, 'Unknown'), ' (', IFNULL(sender_organization, 'External'), ')') AS sender_info,
             receipt_date AS date
         FROM `tabInward Dak`
-        WHERE (recipient IN %(auth_desks)s OR owner = %(user)s) AND status = 'Diarized'
+        WHERE (recipient IN %(auth_desks)s OR owner = %(user)s) 
+        AND status != 'Draft'
         
         UNION ALL
         
@@ -39,7 +40,8 @@ def execute(filters=None):
         FROM `tabOutward Dak` o
         LEFT JOIN `tabCorrespond Desk Profile` d ON o.sender = d.name
         LEFT JOIN `tabUser` u ON d.user = u.name
-        WHERE (o.internal_recipient IN %(auth_desks)s OR o.owner = %(user)s) AND o.status = 'Approved'
+        WHERE (o.internal_recipient IN %(auth_desks)s OR o.owner = %(user)s) 
+        AND o.status = 'Approved'
         
         ORDER BY date DESC
     """

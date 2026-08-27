@@ -489,7 +489,21 @@ def add_draft_dak(file_name, dak_data):
         doc.sender = frappe.db.get_value("Correspond File", file_name, "current_custodian")
         
     doc.insert(ignore_permissions=True)
-    return {"status": "success"}
+    return doc.name
+    
+@frappe.whitelist()
+def delete_draft_dak(dak_name):
+    # Verify the dak exists
+    if frappe.db.exists("Outward Dak", dak_name):
+        # Fetch its status
+        status = frappe.db.get_value("Outward Dak", dak_name, "status")
+        
+        # Only allow deletion if it is safely in Draft stage
+        if status in ["Draft", "Drafting"]:
+            frappe.delete_doc("Outward Dak", dak_name, ignore_permissions=True)
+            return "Deleted"
+            
+    frappe.throw("Only Draft Daks can be deleted.")
 
 @frappe.whitelist()
 def update_draft_dak(file_name, dak_name, dak_data, submit_doc=False):

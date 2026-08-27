@@ -31,11 +31,8 @@ $(document).ready(function() {
         
         if (route && (route[0] === 'printview' || route[0] === 'print') && route[1] === 'Outward Dak') {
             
-            // Extract the specific Document ID from the route
             let docname = route[2];
             let session_key = 'outward_dak_source_' + docname;
-            
-            // Read from the unique document memory slot
             let target_report = sessionStorage.getItem(session_key) || "Dak Outbox";
             let target_link = "/app/query-report/" + encodeURIComponent(target_report);
 
@@ -66,9 +63,42 @@ $(document).ready(function() {
         }
     }
 
-    setTimeout(override_print_breadcrumb, 300);
+    // =========================================================
+    // 3. DESK PROFILE REDIRECT FOR REGULAR USERS
+    // =========================================================
+    function check_desk_profile_redirect() {
+        let route = typeof frappe.get_route === 'function' ? frappe.get_route() : null;
+        
+        if (route && route[0] === 'List' && route[1] === 'Correspond Desk Profile') {
+            let is_admin = frappe.user.has_role("System Manager");
+            
+            if (!is_admin) {
+                frappe.db.get_value('Correspond Desk Profile', { user: frappe.session.user }, 'name', (r) => {
+                    if (r && r.name) {
+                        frappe.set_route('Form', 'Correspond Desk Profile', r.name);
+                    } else {
+                        frappe.msgprint({
+                            title: __('Profile Not Found'),
+                            indicator: 'orange',
+                            message: __('No Desk Profile has been assigned to your user account yet. Please contact your System Manager.')
+                        });
+                    }
+                });
+            }
+        }
+    }
+
+    // =========================================================
+    // MASTER ROUTE CHANGE HANDLER
+    // =========================================================
+    function handle_route_changes() {
+        override_print_breadcrumb();
+        check_desk_profile_redirect();
+    }
+
+    setTimeout(handle_route_changes, 300);
 
     if (window.frappe && frappe.router) {
-        frappe.router.on('change', override_print_breadcrumb);
+        frappe.router.on('change', handle_route_changes);
     }
 });

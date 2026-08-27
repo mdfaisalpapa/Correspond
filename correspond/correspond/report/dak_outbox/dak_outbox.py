@@ -30,7 +30,8 @@ def execute(filters=None):
         FROM `tabOutward Dak` o
         LEFT JOIN `tabCorrespond Desk Profile` d ON o.internal_recipient = d.name
         LEFT JOIN `tabUser` u ON d.user = u.name
-        WHERE o.sender IN %(auth_desks)s
+        WHERE o.sender IN %(auth_desks)s 
+        AND o.status = 'Approved' 
         ORDER BY o.modified DESC
     """
     

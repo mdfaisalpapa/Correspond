@@ -5,8 +5,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "section_name",
   "section_abbr",
+  "section_name",
   "department"
  ],
  "fields": [
@@ -35,7 +35,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-24 13:43:37.427979",
+ "modified": "2026-08-25 12:54:22.008741",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond Section",
@@ -67,6 +67,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],

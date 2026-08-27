@@ -11,6 +11,7 @@
   "department",
   "section",
   "designation",
+  "signature_block",
   "seat_number",
   "is_abolished",
   "disabled"
@@ -77,12 +78,17 @@
    "fieldtype": "Data",
    "label": "Desk Title",
    "read_only": 1
+  },
+  {
+   "fieldname": "signature_block",
+   "fieldtype": "Text Editor",
+   "label": "Signature Block"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-24 14:52:55.965238",
+ "modified": "2026-08-25 11:40:45.673142",
  "modified_by": "Administrator",
  "module": "Correspond",
  "name": "Correspond Desk Profile",
@@ -109,7 +115,8 @@
    "report": 1,
    "role": "Correspond User",
    "select": 1,
-   "share": 1
+   "share": 1,
+   "write": 1
   }
  ],
  "row_format": "Dynamic",
