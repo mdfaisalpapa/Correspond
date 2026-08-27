@@ -1,0 +1,55 @@
+<div style="padding: 10px; font-size: 13px;">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="{{ user.user_image or '/assets/frappe/images/default-avatar.png' }}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #dee2e6; margin-bottom: 10px;">
+        <h4 style="margin: 0; color: #333;">{{ user.full_name or 'No Name Set' }}</h4>
+        <p class="text-muted" style="margin: 0; font-size: 12px;">{{ user.name }}</p>
+    </div>
+    <table class="table table-bordered table-sm" style="background: #fff; margin-bottom: 0;">
+        <tr>
+            <td style="width: 35%; font-weight: bold; background: #f8f9fa;">Email / ID:</td>
+            <td>{{ user.name }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; background: #f8f9fa;">Status:</td>
+            <td>
+                {% if user.enabled %}
+                    <span class="badge badge-success">Enabled</span>
+                {% else %}
+                    <span class="badge badge-danger">Disabled</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; background: #f8f9fa; color: #856404;">Desk at time of Noting:</td>
+            <td>
+                {% if hist_desk %}
+                    {{ hist_title }} ({{ hist_desk }})
+                {% else %}
+                    <span class="text-muted">Unknown</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; background: #f8f9fa; color: #155724;">Current Active Desk(s):</td>
+            <td>
+                {% if user.current_desks %}
+                    {% for d in user.current_desks %}
+                        {{ d.desk_title }} ({{ d.name }})<br>
+                    {% endfor %}
+                {% else %}
+                    <span class="text-muted">No active desks</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; background: #f8f9fa;">Assigned Roles:</td>
+            <td style="word-break: break-word; font-size: 12px;">
+                {% if user.roles %}
+                    {{ user.roles | map(attribute='role') | join(', ') }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+</div>

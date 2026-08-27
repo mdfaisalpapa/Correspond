@@ -26,7 +26,7 @@
                     <a href="/app/{{ dak.doctype | lower | replace(' ', '-') }}/{{ dak.name }}" target="_blank" title="Edit draft" style="font-weight: 600; color: #1f272e; text-decoration: none;"><b>Subject:</b> {{ dak.subject or "Untitled" }} <i class="fa fa-pencil text-primary" style="margin-left: 5px;"></i></a>
                 {% endif %}
             {% else %}
-                <a href="/api/method/frappe.utils.print_format.download_pdf?doctype={{ dak.doctype }}&name={{ dak.name }}&format=Standard&no_letterhead=0" target="_blank" title="Download PDF" style="font-weight: 600; color: #1f272e; text-decoration: none;"><b>Subject:</b> {{ dak.subject or "Untitled" }} <i class="fa fa-file-pdf-o text-danger" style="margin-left: 5px;"></i></a>
+                <a href="/api/method/frappe.utils.print_format.download_pdf?doctype={{ dak.doctype }}&name={{ dak.name }}" target="_blank" title="Download PDF" style="font-weight: 600; color: #1f272e; text-decoration: none;"><b>Subject:</b> {{ dak.subject or "Untitled" }} <i class="fa fa-file-pdf-o text-danger" style="margin-left: 5px;"></i></a>
             {% endif %}
             {{ clip | safe }}
         </div>

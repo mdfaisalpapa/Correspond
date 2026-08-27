@@ -25,6 +25,40 @@ def is_user_custodian(file_name):
     desk_user = frappe.db.get_value("Correspond Desk Profile", current_desk, "user")
     return desk_user == user
 
+@frappe.whitelist()
+def get_user_details(user_email, hist_desk=None, hist_title=None):
+    user_info = frappe.db.get_value(
+        "User", 
+        user_email, 
+        ["name", "full_name", "enabled", "user_image"], 
+        as_dict=True
+    )
+    
+    if not user_info:
+        return {}
+        
+    roles = frappe.get_all("Has Role", filters={"parent": user_email}, pluck="role")
+    user_info["roles"] = [{"role": r} for r in roles]
+    
+    user_info["current_desks"] = frappe.get_all(
+        "Correspond Desk Profile", 
+        filters={"user": user_email, "disabled": 0, "is_abolished": 0},
+        fields=["name", "desk_title"]
+    )
+    
+    # Render the HTML template on the server
+    context = {
+        "user": user_info,
+        "hist_desk": hist_desk,
+        "hist_title": hist_title
+    }
+    html_content = frappe.render_template("correspond/templates/user_info.html", context)
+    
+    return {
+        "html": html_content,
+        "full_name": user_info.full_name or user_info.name
+    }
+    
 class CorrespondFile(Document):
 
     def autoname(self):
@@ -232,6 +266,21 @@ def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
                         all_files.append(val)
 
     notes = frappe.get_all("Correspond Noting", filters={"file": ["in", all_files]}, fields=["name", "note_details", "file", "docstatus", "owner", "status", "creation", "author_desk"], order_by="creation asc")
+    
+    for n in notes:
+        n.author_name = n.owner
+        n.author_title = ""
+        n.author_desk_name = n.author_desk or ""
+        
+        if n.owner:
+            full_name = frappe.db.get_value("User", n.owner, "full_name")
+            if full_name:
+                n.author_name = full_name
+                
+        if n.author_desk:
+            desk_title = frappe.db.get_value("Correspond Desk Profile", n.author_desk, "desk_title")
+            if desk_title:
+                n.author_title = desk_title
     
     draft_daks, final_daks = [], []
     outward_links = frappe.get_all("Outward Dak Linked File", filters={"file": ["in", all_files]}, pluck="parent")
@@ -481,9 +530,22 @@ def update_draft_note(file_name, note_name, note_details):
 def add_draft_dak(file_name, dak_data):
     verify_active_custody(file_name)
     data = json.loads(dak_data)
+    
     doc = frappe.new_doc("Outward Dak")
     doc.primary_file = file_name
+    
+    # 1. Safely extract child tables so Frappe's buggy .update() doesn't touch them
+    cc_list = data.pop("cc_list", [])
+    attachments = data.pop("attachments", [])
+    
+    # 2. Update standard fields
     doc.update(data)
+    
+    # 3. Forcibly inject child tables row by row
+    for r in cc_list: 
+        doc.append("cc_list", r)
+    for r in attachments: 
+        doc.append("attachments", r)
     
     if not doc.get("sender"):
         doc.sender = frappe.db.get_value("Correspond File", file_name, "current_custodian")
@@ -510,12 +572,30 @@ def update_draft_dak(file_name, dak_name, dak_data, submit_doc=False):
     verify_active_custody(file_name)
     data = json.loads(dak_data)
     dak = frappe.get_doc("Outward Dak", dak_name)
+    
+    # 1. Safely extract child tables
+    cc_list = data.pop("cc_list", None)
+    attachments = data.pop("attachments", None)
+    
+    # 2. Update standard fields
     dak.update(data)
+    
+    # 3. Forcibly wipe and rewrite child tables if they were provided in the payload
+    if cc_list is not None:
+        dak.set("cc_list", []) # Wipe stale rows
+        for r in cc_list: 
+            dak.append("cc_list", r)
+            
+    if attachments is not None:
+        dak.set("attachments", []) # Wipe stale rows
+        for r in attachments: 
+            dak.append("attachments", r)
     
     if not dak.get("sender"):
         dak.sender = frappe.db.get_value("Correspond File", file_name, "current_custodian")
         
     dak.save(ignore_permissions=True)
+    
     if str(submit_doc).lower() == 'true': 
         dak.submit()
         

@@ -35,7 +35,24 @@
             
             <div id="note-{{ note.name }}" class="target-reference-item" style="margin-bottom: 20px; border-bottom: 1px solid #c3e6cb; padding-bottom: 15px;">
                 <div style="font-size: 12px; color: #155724; margin-bottom: 8px;">
-                    <b style="font-size: 14px; text-decoration: underline;">Note #{{ start_idx + loop.index }}</b> &nbsp;•&nbsp; <b>{{ note.owner }}</b> • 
+					<b style="font-size: 14px; text-decoration: underline;">Note #{{ start_idx + loop.index }}</b> &nbsp;•&nbsp; 
+					
+					<!-- Updated to call the popup function -->
+					<!-- Replace href="#" with href="javascript:void(0);" -->
+					<!-- Use a class and data-attribute instead of onclick -->
+<a href="#" class="custom-user-profile-link" data-user-email="{{ note.owner }}" style="color: #155724; <a href="javascript:void(0);" 
+   class="custom-user-profile-link" 
+   data-user-email="{{ note.owner }}" 
+   data-historical-desk="{{ note.author_desk_name }}"
+   data-historical-title="{{ note.author_title }}"
+   style="color: #155724; font-weight: bold; text-decoration: underline;" 
+   title="View User Details">
+    {{ note.author_name }}
+</a>
+
+					{% if note.author_title %}
+						<span>({{ note.author_title }} - {{ note.author_desk_name }})</span>
+					{% endif %} •
                     
                     {% if is_draft %}
                         {% if is_snapshot %}
