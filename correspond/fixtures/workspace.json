@@ -1,6 +1,5 @@
 [
  {
-  "app": "correspond",
   "charts": [],
   "content": "[]",
   "custom_blocks": [],
@@ -18,6 +17,7 @@
   "links": [],
   "modified": "2026-08-20 12:20:18.545801",
   "module": "Correspond",
+  "module_onboarding": null,
   "name": "Correspond",
   "number_cards": [],
   "parent_page": null,
@@ -42,6 +42,7 @@
     "url": null
    }
   ],
+  "standard": 0,
   "title": "Correspond",
   "type": "Workspace"
  }
