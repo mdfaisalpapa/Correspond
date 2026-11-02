@@ -25,6 +25,7 @@
   "module": "Correspond",
   "name": "Official Letter Format",
   "page_number": "Hide",
+  "paper_size": null,
   "pdf_generator": "wkhtmltopdf",
   "preview_image": null,
   "print_format_builder": 0,
