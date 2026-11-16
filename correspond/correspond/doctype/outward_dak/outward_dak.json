@@ -21,7 +21,13 @@
   "attachments",
   "status",
   "linked_files",
-  "amended_from"
+  "amended_from",
+  "dfa_type",
+  "dispatch_register_no",
+  "dispatch_mode",
+  "consignment_number",
+  "approved_by_desk",
+  "approved_on"
  ],
  "fields": [
   {
@@ -76,7 +82,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Draft\nApproved\nDispatched\nCancelled",
+   "options": "Draft\nSubmitted for Approval\nApproved\nMarked for Dispatch\nDispatched\nCancelled",
    "read_only": 1
   },
   {
@@ -135,6 +141,47 @@
    "fieldname": "section_break_eczw",
    "fieldtype": "Section Break",
    "label": "Content"
+  },
+  {
+   "default": "Office Memorandum",
+   "fieldname": "dfa_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "DFA Type",
+   "options": "Office Memorandum\nDemi-Official (D.O.) Letter\nSanction Order\nCircular\nOffice Order\nGeneral Letter"
+  },
+  {
+   "fieldname": "dispatch_register_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Dispatch Register No",
+   "read_only": 1
+  },
+  {
+   "default": "Email",
+   "fieldname": "dispatch_mode",
+   "fieldtype": "Select",
+   "label": "Dispatch Mode",
+   "options": "Email\nSpeed Post\nRegistered Post\nSpecial Messenger / Peon Book\nBy Hand\nPortal Upload"
+  },
+  {
+   "fieldname": "consignment_number",
+   "fieldtype": "Data",
+   "label": "Consignment / Tracking Number"
+  },
+  {
+   "fieldname": "approved_by_desk",
+   "fieldtype": "Link",
+   "label": "Approved By Desk",
+   "options": "Correspond Desk Profile",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Approved On",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

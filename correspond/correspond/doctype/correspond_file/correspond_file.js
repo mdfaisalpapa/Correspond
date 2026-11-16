@@ -493,6 +493,8 @@ function create_outward_dak_inline(frm) {
         title: 'Create Outgoing Dak (Draft)',
         onhide: () => { if (ui_ticker) clearInterval(ui_ticker); },
         fields: [
+            { fieldtype: 'Section Break', label: 'Government Format & DFA Type' },
+            { fieldname: 'dfa_type', label: 'DFA Template Format', fieldtype: 'Select', options: 'Office Memorandum\nDemi-Official (D.O.) Letter\nSanction Order\nCircular\nOffice Order\nGeneral Letter', default: 'Office Memorandum', reqd: 1 },
             { fieldtype: 'Section Break', label: 'Recipient Details' },
             { fieldname: 'recipient_type', label: 'Recipient Type', fieldtype: 'Select', options: 'Internal User\nExternal User', reqd: 1, default: 'Internal User' },
             { fieldname: 'internal_recipient', label: 'Internal Recipient (Desk)', fieldtype: 'Link', options: 'Correspond Desk Profile', depends_on: 'eval:doc.recipient_type=="Internal User"', get_query: () => { return { query: 'correspond.correspond.doctype.correspond_file.correspond_file.get_forward_recipients' }; } },
@@ -563,6 +565,31 @@ function create_outward_dak_inline(frm) {
     $footer.find('.btn-primary').before($auto_save_indicator);
 
     $close_btn.on('click', function(e) { e.preventDefault(); d.hide(); });
+
+    // Auto-populate DFA template boilerplate on selection change
+    d.fields_dict.dfa_type.$input.on('change', function() {
+        let selected_template = $(this).val();
+        frappe.call({
+            method: 'correspond.correspond.dfa_templates.get_dfa_template',
+            args: { template_name: selected_template },
+            callback: function(res) {
+                if (res.message && (!d.get_value('letter_body') || d.get_value('letter_body').trim() === '')) {
+                    d.set_value('letter_body', res.message);
+                }
+            }
+        });
+    });
+
+    // Populate initial template
+    frappe.call({
+        method: 'correspond.correspond.dfa_templates.get_dfa_template',
+        args: { template_name: 'Office Memorandum' },
+        callback: function(res) {
+            if (res.message && (!d.get_value('letter_body') || d.get_value('letter_body').trim() === '')) {
+                d.set_value('letter_body', res.message);
+            }
+        }
+    });
 
     $save_btn.on('click', function(e) {
         e.preventDefault();
@@ -769,6 +796,31 @@ function edit_outward_dak_inline(frm, dak_name) {
 
             d.$wrapper.find('.modal-footer').prepend($left_actions);
             $close_btn.on('click', function(e) { e.preventDefault(); d.hide(); });
+
+    // Auto-populate DFA template boilerplate on selection change
+    d.fields_dict.dfa_type.$input.on('change', function() {
+        let selected_template = $(this).val();
+        frappe.call({
+            method: 'correspond.correspond.dfa_templates.get_dfa_template',
+            args: { template_name: selected_template },
+            callback: function(res) {
+                if (res.message && (!d.get_value('letter_body') || d.get_value('letter_body').trim() === '')) {
+                    d.set_value('letter_body', res.message);
+                }
+            }
+        });
+    });
+
+    // Populate initial template
+    frappe.call({
+        method: 'correspond.correspond.dfa_templates.get_dfa_template',
+        args: { template_name: 'Office Memorandum' },
+        callback: function(res) {
+            if (res.message && (!d.get_value('letter_body') || d.get_value('letter_body').trim() === '')) {
+                d.set_value('letter_body', res.message);
+            }
+        }
+    });
             
             $save_btn.on('click', function(e) {
                 e.preventDefault();
