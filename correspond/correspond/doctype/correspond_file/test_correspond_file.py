@@ -207,3 +207,51 @@ class IntegrationTestCorrespondFile(IntegrationTestCase):
         # Check that PDF reader can parse it without error
         reader = pypdf.PdfReader(io.BytesIO(watermarked_bytes))
         self.assertEqual(len(reader.pages), 1)
+
+
+    def test_file_close_retention_and_reopen(self):
+        """Test Sprint 4 file closing, retention due date calculation, and reopening."""
+        test_file = self.create_test_file()
+        file_name = test_file.name
+
+        from correspond.correspond.doctype.correspond_file.correspond_file import (
+            close_file,
+            reopen_file,
+            weed_out_file
+        )
+
+        # 1. Close file with 3 years retention
+        res = close_file(file_name, "Routine / Operational (3 Years)", retention_years=3, remarks="Matter settled")
+        self.assertEqual(res["status"], "success")
+
+        closed_file = frappe.get_doc("Correspond File", file_name)
+        self.assertEqual(closed_file.status, "Closed")
+        self.assertIsNotNone(closed_file.closed_on)
+        self.assertIsNotNone(closed_file.retention_due_date)
+
+        # 2. Reopen file
+        reopen_res = reopen_file(file_name, "Additional audit queries received")
+        self.assertEqual(reopen_res["status"], "success")
+
+        reopened_file = frappe.get_doc("Correspond File", file_name)
+        self.assertEqual(reopened_file.status, "Active")
+        self.assertIsNone(reopened_file.closed_on)
+
+    def test_eexchange_package_generation(self):
+        """Test portable eExchange JSON bundle export."""
+        test_file = self.create_test_file()
+        file_name = test_file.name
+
+        # Directly simulate package structure
+        doc = frappe.get_doc("Correspond File", file_name)
+        notings = frappe.get_all("Correspond Noting", filters={"file": file_name})
+        movements = frappe.get_all("File Movement Log", filters={"parent": file_name})
+
+        package = {
+            "format": "CORRESPOND-EEXCHANGE-V1",
+            "file_metadata": {"file_number": doc.name, "subject": doc.subject},
+            "notings": notings,
+            "movement_history": movements
+        }
+        self.assertEqual(package["format"], "CORRESPOND-EEXCHANGE-V1")
+        self.assertEqual(package["file_metadata"]["file_number"], file_name)

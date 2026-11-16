@@ -248,6 +248,9 @@ frappe.ui.form.on('Correspond File', {
             $(frm.wrapper).on('click', '.custom-park-btn', function(e) { e.preventDefault(); trigger_park_dialog(frm); });
             $(frm.wrapper).on('click', '.custom-unpark-btn', function(e) { e.preventDefault(); trigger_unpark_dialog(frm); });
             $(frm.wrapper).on('click', '.custom-flag-btn', function(e) { e.preventDefault(); show_flag_management_dialog(frm); });
+            $(frm.wrapper).on('click', '.custom-close-file-btn', function(e) { e.preventDefault(); trigger_close_file_dialog(frm); });
+            $(frm.wrapper).on('click', '.custom-reopen-btn', function(e) { e.preventDefault(); trigger_reopen_file_dialog(frm); });
+            $(frm.wrapper).on('click', '.custom-export-pkg-btn', function(e) { e.preventDefault(); window.open(`/api/method/correspond.correspond.doctype.correspond_file.correspond_file.export_file_eexchange_package?file_name=${encodeURIComponent(frm.doc.name)}`); });
 
             $(frm.wrapper).on('click', 'a', function(e) { 
                 let href = $(this).attr('href'); 
@@ -1245,4 +1248,87 @@ function show_flag_management_dialog(frm) {
             d.show();
         }
     });
+}
+
+
+// =========================================================================
+// SPRINT 4: CLOSE FILE & REOPEN FILE DIALOGS
+// =========================================================================
+function trigger_close_file_dialog(frm) {
+    let d = new frappe.ui.Dialog({
+        title: '<i class="fa fa-archive text-info"></i> Close File & Archive to Record Room',
+        fields: [
+            {
+                fieldname: 'retention_category',
+                fieldtype: 'Select',
+                label: 'Retention Category',
+                options: 'Permanent (Historical / Legal)\nLong Term (10 - 25 Years)\nStandard Policy / Projects (5 Years)\nRoutine / Operational (3 Years)\nTemporary (1 Year)',
+                default: 'Routine / Operational (3 Years)',
+                reqd: 1
+            },
+            {
+                fieldname: 'retention_years',
+                fieldtype: 'Int',
+                label: 'Retention Period in Years',
+                default: 3,
+                reqd: 1
+            },
+            {
+                fieldname: 'remarks',
+                fieldtype: 'Small Text',
+                label: 'Closing Remarks / Subject Summary'
+            }
+        ],
+        primary_action_label: 'Confirm Close & Archive',
+        primary_action_classes: 'btn-info',
+        primary_action(values) {
+            frappe.call({
+                method: 'correspond.correspond.doctype.correspond_file.correspond_file.close_file',
+                args: {
+                    file_name: frm.doc.name,
+                    retention_category: values.retention_category,
+                    retention_years: values.retention_years,
+                    remarks: values.remarks
+                },
+                freeze: true,
+                callback: function(r) {
+                    if (!r.exc) {
+                        d.hide();
+                        frappe.show_alert({message: __('File closed and archived to Record Room.'), indicator: 'green'});
+                        load_eoffice_data(frm);
+                        frm.reload_doc();
+                    }
+                }
+            });
+        }
+    });
+    d.show();
+}
+
+function trigger_reopen_file_dialog(frm) {
+    frappe.prompt([
+        {
+            fieldname: 'reason',
+            fieldtype: 'Small Text',
+            label: 'Reason for Reopening',
+            reqd: 1,
+            description: 'Provide an administrative reason to pull this file back from the Record Room into active custody.'
+        }
+    ], function(values) {
+        frappe.call({
+            method: 'correspond.correspond.doctype.correspond_file.correspond_file.reopen_file',
+            args: {
+                file_name: frm.doc.name,
+                reason: values.reason
+            },
+            freeze: true,
+            callback: function(r) {
+                if (!r.exc) {
+                    frappe.show_alert({message: __('File reopened to Active status.'), indicator: 'green'});
+                    load_eoffice_data(frm);
+                    frm.reload_doc();
+                }
+            }
+        });
+    }, __('Reopen File from Record Room: {0}', [frm.doc.name]), __('Confirm Reopen'));
 }

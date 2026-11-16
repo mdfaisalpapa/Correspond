@@ -898,3 +898,155 @@ def get_referencing_flags(file_name):
         except Exception:
             return {}
     return {}
+
+
+# =====================================================================
+# SPRINT 4: RECORDS LIFECYCLE (CLOSE, ARCHIVE, WEED) & E-EXCHANGE
+# =====================================================================
+
+@frappe.whitelist()
+def close_file(file_name, retention_category, retention_years=3, remarks=""):
+    """
+    Closes an active or parked file and transfers it to the Electronic Record Room.
+    Calculates retention expiry date based on the chosen retention category and years.
+    """
+    verify_active_custody(file_name)
+    user = frappe.session.user
+    doc = frappe.get_doc("Correspond File", file_name)
+
+    if doc.status == "Closed":
+        frappe.throw(_("File is already closed."))
+
+    doc.status = "Closed"
+    doc.closed_on = frappe.utils.now_datetime()
+    doc.closed_by = user
+    doc.retention_category = retention_category
+    doc.retention_years = int(retention_years or 3)
+
+    if "Permanent" in retention_category:
+        doc.retention_due_date = None
+    else:
+        # Calculate retention due date from today + retention_years
+        doc.retention_due_date = frappe.utils.add_years(frappe.utils.nowdate(), int(retention_years or 3))
+
+    row_data = {
+        "timestamp": frappe.utils.now_datetime(),
+        "moved_from": user,
+        "moved_to": user,
+        "action": "Returned",
+        "remarks": f"[Closed & Transferred to Record Room] Category: {retention_category} | Retain: {retention_years} yr(s) | {remarks or ''}".strip(),
+        "sender_desk": doc.current_custodian,
+        "recipient_desk": doc.current_custodian,
+        "is_opened": 1,
+        "opened_on": frappe.utils.now_datetime()
+    }
+    doc.append("movement_log", row_data)
+    doc.flags.ignore_permissions = True
+    doc.save(ignore_permissions=True)
+
+    return {"status": "success", "message": _("File successfully closed and archived into Record Room.")}
+
+
+@frappe.whitelist()
+def reopen_file(file_name, reason):
+    """
+    Reopens a previously closed file back to Active working status.
+    """
+    user = frappe.session.user
+    doc = frappe.get_doc("Correspond File", file_name)
+
+    if doc.status != "Closed":
+        frappe.throw(_("Only Closed files can be reopened."))
+
+    if not reason:
+        frappe.throw(_("A reason for reopening is required."))
+
+    doc.status = "Active"
+    doc.closed_on = None
+    doc.closed_by = None
+    doc.retention_due_date = None
+
+    row_data = {
+        "timestamp": frappe.utils.now_datetime(),
+        "moved_from": user,
+        "moved_to": user,
+        "action": "Returned",
+        "remarks": f"[Reopened File from Record Room] Reason: {reason}".strip(),
+        "sender_desk": doc.current_custodian,
+        "recipient_desk": doc.current_custodian,
+        "is_opened": 1,
+        "opened_on": frappe.utils.now_datetime()
+    }
+    doc.append("movement_log", row_data)
+    doc.flags.ignore_permissions = True
+    doc.save(ignore_permissions=True)
+
+    return {"status": "success", "message": _("File reopened successfully.")}
+
+
+@frappe.whitelist()
+def weed_out_file(file_name, justification):
+    """
+    Weeds out / destructs an expired retention file from the Electronic Record Room.
+    Sets status to 'Archived' (weeded) and preserves permanent audit movement log.
+    """
+    user = frappe.session.user
+    if "System Manager" not in frappe.get_roles(user):
+        frappe.throw(_("Only System Managers or Record Room Officers can approve weeding out of files."))
+
+    doc = frappe.get_doc("Correspond File", file_name)
+    if doc.status != "Closed":
+        frappe.throw(_("Only Closed files whose retention period has expired can be weeded."))
+
+    doc.status = "Archived"
+    row_data = {
+        "timestamp": frappe.utils.now_datetime(),
+        "moved_from": user,
+        "moved_to": user,
+        "action": "Returned",
+        "remarks": f"[Weeded Out / Destruction Certificate] Justification: {justification}".strip(),
+        "sender_desk": doc.current_custodian,
+        "recipient_desk": doc.current_custodian,
+        "is_opened": 1,
+        "opened_on": frappe.utils.now_datetime()
+    }
+    doc.append("movement_log", row_data)
+    doc.flags.ignore_permissions = True
+    doc.save(ignore_permissions=True)
+
+    return {"status": "success", "message": _("File marked as Weeded Out / Archived.")}
+
+
+@frappe.whitelist()
+def export_file_eexchange_package(file_name):
+    """
+    Generates a portable eExchange JSON payload enabling inter-organization
+    or inter-instance migration of complete file deliberations and audit logs.
+    """
+    doc = frappe.get_doc("Correspond File", file_name)
+    notings = frappe.get_all("Correspond Noting", filters={"file": file_name}, fields=["name", "note_details", "docstatus", "status", "owner", "author_desk", "creation"], order_by="creation asc")
+    movements = frappe.get_all("File Movement Log", filters={"parent": file_name}, fields=["timestamp", "moved_from", "moved_to", "action", "remarks", "sender_desk", "recipient_desk"], order_by="timestamp asc")
+
+    package = {
+        "format": "CORRESPOND-EEXCHANGE-V1",
+        "exported_on": str(frappe.utils.now_datetime()),
+        "exported_by": frappe.session.user,
+        "file_metadata": {
+            "file_number": doc.name,
+            "subject": doc.subject,
+            "description": doc.description,
+            "status": doc.status,
+            "retention_category": doc.retention_category,
+            "desk_office": doc.desk_office,
+            "desk_department": doc.desk_department,
+            "desk_section": doc.desk_section
+        },
+        "notings": notings,
+        "movement_history": movements,
+        "referencing_flags": doc.get("referencing_flags") or "{}"
+    }
+
+    frappe.response.filename = f"{doc.name.replace('/', '_')}_eExchange.json"
+    frappe.response.filecontent = json.dumps(package, indent=2)
+    frappe.response.type = "download"
+    return

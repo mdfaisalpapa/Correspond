@@ -31,7 +31,13 @@
   "movements_tab",
   "file_movement_history_section",
   "movement_log",
-  "referencing_flags"
+  "referencing_flags",
+  "retention_category",
+  "retention_years",
+  "closed_on",
+  "closed_by",
+  "retention_due_date",
+  "archived_location"
  ],
  "fields": [
   {
@@ -201,6 +207,44 @@
    "label": "Referencing Flags (JSON)",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "default": "Routine / Operational (3 Years)",
+   "fieldname": "retention_category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Retention Category",
+   "options": "Permanent (Historical / Legal)\nLong Term (10 - 25 Years)\nStandard Policy / Projects (5 Years)\nRoutine / Operational (3 Years)\nTemporary (1 Year)"
+  },
+  {
+   "fieldname": "retention_years",
+   "fieldtype": "Int",
+   "label": "Retention Period (Years)",
+   "default": 3
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_by",
+   "fieldtype": "Link",
+   "label": "Closed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "retention_due_date",
+   "fieldtype": "Date",
+   "label": "Retention / Weeding Due Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "archived_location",
+   "fieldtype": "Data",
+   "label": "Digital Archive Reference / Folder"
   }
  ],
  "grid_page_length": 50,

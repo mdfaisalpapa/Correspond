@@ -3,12 +3,18 @@
     {% if file_status == 'Parked' %}
         <span class="badge badge-warning" style="padding: 6px 10px; font-size: 12px; margin-right: auto;"><i class="fa fa-pause-circle"></i> File is Currently Parked</span>
         <button type="button" class="btn btn-info btn-sm custom-unpark-btn"><i class="fa fa-play"></i> Resume / Unpark File</button>
+    {% elif file_status == 'Closed' or file_status == 'Archived' %}
+        <span class="badge badge-secondary" style="padding: 6px 10px; font-size: 12px; margin-right: auto;"><i class="fa fa-archive"></i> File is Closed / Archived in Record Room</span>
+        <button type="button" class="btn btn-warning btn-sm custom-reopen-btn"><i class="fa fa-folder-open"></i> Reopen File</button>
+        <button type="button" class="btn btn-default btn-sm custom-export-pkg-btn"><i class="fa fa-download"></i> eExchange Package</button>
     {% else %}
         {% if not has_draft %}
         <button type="button" class="btn btn-primary btn-sm custom-add-note-btn"><i class="fa fa-plus"></i> Add Note</button>
         {% endif %}
         <button type="button" class="btn btn-secondary btn-sm custom-park-btn"><i class="fa fa-pause"></i> Park File</button>
         <button type="button" class="btn btn-warning btn-sm custom-flag-btn"><i class="fa fa-tag"></i> Reference Flags</button>
+        <button type="button" class="btn btn-info btn-sm custom-close-file-btn"><i class="fa fa-check-square-o"></i> Close File</button>
+        <button type="button" class="btn btn-default btn-sm custom-export-pkg-btn"><i class="fa fa-download"></i> eExchange Package</button>
         <button type="button" class="btn btn-success btn-sm custom-forward-btn"><i class="fa fa-share"></i> Forward File</button>
         <button type="button" class="btn btn-sm btn-warning custom-send-back-btn"><i class="fa fa-reply"></i> Send Back</button>
     {% endif %}
