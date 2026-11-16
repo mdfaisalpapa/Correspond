@@ -10,11 +10,15 @@
   "file_number",
   "subject",
   "description",
+  "status",
   "is_attached",
   "column_break_fszr",
   "file_owner",
   "current_custodian",
   "custodian_user",
+  "park_reason",
+  "parked_until",
+  "parked_by",
   "attached_to",
   "has_active_attachments",
   "office_view",
@@ -26,7 +30,8 @@
   "attached_files",
   "movements_tab",
   "file_movement_history_section",
-  "movement_log"
+  "movement_log",
+  "referencing_flags"
  ],
  "fields": [
   {
@@ -160,6 +165,42 @@
    "label": "Custodian User",
    "options": "User",
    "read_only": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Active\nParked\nClosed\nArchived",
+   "read_only": 1
+  },
+  {
+   "fieldname": "park_reason",
+   "fieldtype": "Small Text",
+   "label": "Park Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "parked_until",
+   "fieldtype": "Date",
+   "label": "Parked Until",
+   "read_only": 1
+  },
+  {
+   "fieldname": "parked_by",
+   "fieldtype": "Link",
+   "label": "Parked By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "referencing_flags",
+   "fieldtype": "Small Text",
+   "label": "Referencing Flags (JSON)",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "grid_page_length": 50,

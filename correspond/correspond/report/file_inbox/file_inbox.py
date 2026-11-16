@@ -12,7 +12,8 @@ def execute(filters=None):
         {"fieldname": "select", "label": "Select", "fieldtype": "Check", "width": 60},
         {"fieldname": "file_number", "label": "File No", "fieldtype": "Data", "width": 220},
         {"fieldname": "subject", "label": "Subject", "fieldtype": "Data", "width": 300},
-        {"fieldname": "sent_by", "label": "Sent By", "fieldtype": "Data", "width": 300},
+        {"fieldname": "status", "label": "Status", "fieldtype": "Data", "width": 100},
+        {"fieldname": "sent_by", "label": "Sent By", "fieldtype": "Data", "width": 280},
         {"fieldname": "sent_on", "label": "Sent On", "fieldtype": "Datetime", "width": 160},
         {"fieldname": "remarks", "label": "Remarks", "fieldtype": "Data", "width": 250}
     ]
@@ -25,6 +26,7 @@ def execute(filters=None):
             0 as `select`, 
             df.name as file_number, 
             df.subject,
+            ifnull(df.status, 'Active') as status,
             (
                 SELECT CONCAT(IFNULL(u.full_name, d.user), ' - ', IFNULL(d.desk_title, d.name))
                 FROM `tabFile Movement Log` fml

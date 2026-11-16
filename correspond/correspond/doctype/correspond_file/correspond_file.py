@@ -329,19 +329,30 @@ def get_file_and_references(file_name, note_page=1, active_tab='#tab-toc'):
     paginated_notes = notes[start_idx:end_idx]
     submitted_notes = [n for n in notes if n.docstatus == 1]
 
-    green_sheet_html = render_green_sheet(paginated_notes, start_idx, end_idx, total_notes, has_draft, is_historical)
+    green_sheet_html = render_green_sheet(paginated_notes, start_idx, end_idx, total_notes, has_draft, is_historical, file_doc.status)
     dak_tabs_html = render_dak_tabs(submitted_notes, final_daks, draft_daks, active_tab, is_historical)
+
+    referencing_flags = {}
+    if file_doc.get("referencing_flags"):
+        try:
+            referencing_flags = json.loads(file_doc.referencing_flags)
+        except Exception:
+            referencing_flags = {}
 
     return {
         "green_sheet_html": green_sheet_html,
         "dak_tabs_html": dak_tabs_html,
         "is_historical": is_historical,
         "cutoff_date": cutoff_date,
-        "has_draft": has_draft
+        "has_draft": has_draft,
+        "status": file_doc.status or "Active",
+        "park_reason": file_doc.park_reason or "",
+        "parked_until": str(file_doc.parked_until) if file_doc.parked_until else "",
+        "referencing_flags": referencing_flags
     }
 
-def render_green_sheet(paginated_notes, start_idx, end_idx, total_notes, has_draft, is_snapshot):
-    context = {"notes": paginated_notes, "start_idx": start_idx, "end_idx": end_idx, "total_notes": total_notes, "has_draft": has_draft, "is_snapshot": is_snapshot}
+def render_green_sheet(paginated_notes, start_idx, end_idx, total_notes, has_draft, is_snapshot, file_status="Active"):
+    context = {"notes": paginated_notes, "start_idx": start_idx, "end_idx": end_idx, "total_notes": total_notes, "has_draft": has_draft, "is_snapshot": is_snapshot, "file_status": file_status}
     return frappe.render_template("correspond/templates/green_sheet.html", context)
 
 def render_dak_tabs(submitted_notes, final_daks, draft_daks, active_tab, is_snapshot):
@@ -628,3 +639,252 @@ def get_reference_lookup_data(file_name):
     dak_opts += [{"file": d.file, "label": f"Inward Dak: {d.parent} - {frappe.db.get_value('Inward Dak', d.parent, 'subject') or 'Untitled'}", "value": d.parent} for d in frappe.get_all("Inward Dak Linked File", filters={"file": ["in", all_files_list]}, fields=["parent", "file"])]
 
     return {"file_opts": file_opts, "notes": note_opts, "daks": dak_opts}
+
+
+# =====================================================================
+# SPRINT 1: PULL BACK, PARK FILE, REFERENCING FLAGS & AUDIT LOGIC
+# =====================================================================
+
+@frappe.whitelist()
+def mark_file_opened(file_name):
+    """
+    Marks the latest movement log as opened when the recipient first views the file.
+    Crucial for Pull Back eligibility checks.
+    """
+    user = frappe.session.user
+    user_desks = get_user_active_desks(user)
+    if not user_desks:
+        return {"status": "skipped"}
+
+    latest_log = frappe.db.sql("""
+        SELECT name, recipient_desk, is_opened
+        FROM `tabFile Movement Log`
+        WHERE parent = %s
+        ORDER BY timestamp DESC LIMIT 1
+    """, (file_name,), as_dict=True)
+
+    if latest_log and latest_log[0].recipient_desk in user_desks:
+        if not latest_log[0].is_opened:
+            frappe.db.set_value("File Movement Log", latest_log[0].name, {
+                "is_opened": 1,
+                "opened_on": frappe.utils.now_datetime()
+            }, update_modified=False)
+            return {"status": "marked_opened"}
+
+    return {"status": "unchanged"}
+
+
+@frappe.whitelist()
+def pull_back_file(file_name, reason=""):
+    """
+    Recalls an electronic file back to the sender desk.
+    Rules:
+    - User must hold the sender desk of the very last movement.
+    - Recipient must NOT have opened the file yet (is_opened == 0).
+    - No draft or submitted notes must have been created after the forward timestamp.
+    """
+    user = frappe.session.user
+    user_desks = get_user_active_desks(user)
+    is_admin = "System Manager" in frappe.get_roles(user)
+
+    file_doc = frappe.get_doc("Correspond File", file_name)
+
+    # 1. Fetch latest movement
+    last_log = frappe.db.sql("""
+        SELECT name, sender_desk, recipient_desk, timestamp, is_opened, action
+        FROM `tabFile Movement Log`
+        WHERE parent = %s
+        ORDER BY timestamp DESC LIMIT 1
+    """, (file_name,), as_dict=True)
+
+    if not last_log:
+        frappe.throw(_("No movement history found for this file. Cannot pull back."))
+
+    movement = last_log[0]
+
+    # Verify action was Forwarded
+    if movement.action != "Forwarded":
+        frappe.throw(_("Can only pull back a file whose last action was 'Forwarded' (Current action: {0}).").format(movement.action))
+
+    # Verify user holds the sender desk
+    if not is_admin and movement.sender_desk not in user_desks:
+        frappe.throw(_("Action Denied: You can only pull back files dispatched from your authorized desk."))
+
+    # Verify recipient has not opened it
+    if movement.is_opened and not is_admin:
+        frappe.throw(_("Cannot pull back file '{0}': The recipient has already opened and accessed this file.").format(file_name))
+
+    # Verify no subsequent noting has occurred
+    subsequent_notes = frappe.db.sql("""
+        SELECT 1 FROM `tabCorrespond Noting`
+        WHERE file = %s AND creation >= %s
+    """, (file_name, movement.timestamp))
+    if subsequent_notes:
+        frappe.throw(_("Cannot pull back file: Notes have already been added to the file since it was forwarded."))
+
+    # Restore custody back to sender_desk
+    sender_desk_doc = frappe.get_doc("Correspond Desk Profile", movement.sender_desk)
+    file_doc.current_custodian = sender_desk_doc.name
+    file_doc.desk_office = sender_desk_doc.office
+    file_doc.desk_department = sender_desk_doc.department
+    file_doc.desk_section = sender_desk_doc.section
+    file_doc.desk_designation = sender_desk_doc.designation
+    file_doc.status = "Active"
+
+    row_data = {
+        "timestamp": frappe.utils.now_datetime(),
+        "moved_from": user,
+        "moved_to": sender_desk_doc.user,
+        "action": "Pulled Back",
+        "remarks": f"[Pulled Back from {movement.recipient_desk}] {reason or ''}".strip(),
+        "sender_desk": movement.recipient_desk,
+        "recipient_desk": sender_desk_doc.name,
+        "is_opened": 1,
+        "opened_on": frappe.utils.now_datetime()
+    }
+    file_doc.append("movement_log", row_data)
+    file_doc.flags.ignore_permissions = True
+    file_doc.save(ignore_permissions=True)
+
+    # Sync attached sub-files
+    for attached in file_doc.get("attached_files", []):
+        if attached.status == "Active":
+            child_file = frappe.get_doc("Correspond File", attached.linked_file)
+            child_file.current_custodian = sender_desk_doc.name
+            child_file.desk_office = sender_desk_doc.office
+            child_file.desk_department = sender_desk_doc.department
+            child_file.desk_section = sender_desk_doc.section
+            child_file.desk_designation = sender_desk_doc.designation
+            child_file.status = "Active"
+            child_log = row_data.copy()
+            child_log["remarks"] = f"[Pulled Back with Master File {file_name}] {reason or ''}".strip()
+            child_file.append("movement_log", child_log)
+            child_file.flags.ignore_permissions = True
+            child_file.save(ignore_permissions=True)
+
+    return {"status": "success", "message": _("File successfully pulled back to your desk.")}
+
+
+@frappe.whitelist()
+def park_file(file_name, reason, parked_until=None):
+    """
+    Parks an electronic file in the custodian's custody.
+    The file remains at the desk but is tagged as Parked with a reason and optional target resume date.
+    """
+    verify_active_custody(file_name)
+    user = frappe.session.user
+    doc = frappe.get_doc("Correspond File", file_name)
+
+    if doc.status == "Parked":
+        frappe.throw(_("File is already in Parked status."))
+
+    if not reason:
+        frappe.throw(_("A park reason is mandatory."))
+
+    doc.status = "Parked"
+    doc.park_reason = reason
+    doc.parked_until = parked_until
+    doc.parked_by = user
+
+    row_data = {
+        "timestamp": frappe.utils.now_datetime(),
+        "moved_from": user,
+        "moved_to": user,
+        "action": "Parked",
+        "remarks": f"[Parked File] Reason: {reason}" + (f" | Until: {parked_until}" if parked_until else ""),
+        "sender_desk": doc.current_custodian,
+        "recipient_desk": doc.current_custodian,
+        "is_opened": 1,
+        "opened_on": frappe.utils.now_datetime()
+    }
+    doc.append("movement_log", row_data)
+    doc.flags.ignore_permissions = True
+    doc.save(ignore_permissions=True)
+
+    return {"status": "success", "message": _("File has been parked.")}
+
+
+@frappe.whitelist()
+def unpark_file(file_name, remarks=""):
+    """
+    Resumes a parked file back to Active working status.
+    """
+    verify_active_custody(file_name)
+    user = frappe.session.user
+    doc = frappe.get_doc("Correspond File", file_name)
+
+    if doc.status != "Parked":
+        frappe.throw(_("File is not parked."))
+
+    doc.status = "Active"
+    doc.park_reason = None
+    doc.parked_until = None
+    doc.parked_by = None
+
+    row_data = {
+        "timestamp": frappe.utils.now_datetime(),
+        "moved_from": user,
+        "moved_to": user,
+        "action": "Unparked",
+        "remarks": f"[Unparked / Resumed File] {remarks or ''}".strip(),
+        "sender_desk": doc.current_custodian,
+        "recipient_desk": doc.current_custodian,
+        "is_opened": 1,
+        "opened_on": frappe.utils.now_datetime()
+    }
+    doc.append("movement_log", row_data)
+    doc.flags.ignore_permissions = True
+    doc.save(ignore_permissions=True)
+
+    return {"status": "success", "message": _("File resumed to Active status.")}
+
+
+@frappe.whitelist()
+def save_referencing_flag(file_name, flag_letter, document_type, document_name, page_no=1, remarks=""):
+    """
+    Creates or updates an alphanumeric reference flag (Flag A to Flag Z) on a file.
+    Stored in doc.referencing_flags JSON string.
+    """
+    verify_active_custody(file_name)
+    doc = frappe.get_doc("Correspond File", file_name)
+
+    flags = {}
+    if doc.get("referencing_flags"):
+        try:
+            flags = json.loads(doc.referencing_flags)
+        except Exception:
+            flags = {}
+
+    flag_key = str(flag_letter).strip().upper()
+    if not flag_key.startswith("FLAG "):
+        flag_key = f"FLAG {flag_key}"
+
+    flags[flag_key] = {
+        "flag_letter": flag_key,
+        "document_type": document_type,
+        "document_name": document_name,
+        "page_no": int(page_no or 1),
+        "remarks": remarks or "",
+        "created_by": frappe.session.user,
+        "created_on": str(frappe.utils.now_datetime())
+    }
+
+    doc.referencing_flags = json.dumps(flags)
+    doc.flags.ignore_permissions = True
+    doc.save(ignore_permissions=True)
+
+    return {"status": "success", "flags": flags}
+
+
+@frappe.whitelist()
+def get_referencing_flags(file_name):
+    """
+    Returns the referencing flags mapped to this file.
+    """
+    doc = frappe.get_doc("Correspond File", file_name)
+    if doc.get("referencing_flags"):
+        try:
+            return json.loads(doc.referencing_flags)
+        except Exception:
+            return {}
+    return {}

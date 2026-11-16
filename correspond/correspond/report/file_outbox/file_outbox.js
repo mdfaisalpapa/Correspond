@@ -13,6 +13,16 @@ frappe.query_reports["File Outbox"] = {
                     </a>`;
         }
 
+        if (column.fieldname === "can_pull_back" && data) {
+            if (data.can_pull_back === 1) {
+                return `<button class="btn btn-xs btn-danger" onclick="window.prompt_pull_back('${data.file_number}')" style="padding: 2px 8px; font-size: 11px;">
+                            <i class="fa fa-undo"></i> Pull Back
+                        </button>`;
+            } else {
+                return `<span style="color: #999; font-size: 11px;">${data.is_opened ? 'Opened' : 'Locked'}</span>`;
+            }
+        }
+
         if (column.fieldname === "attachments" && data) {
             if (data.attachments) {
                 let files = data.attachments.split(',');
@@ -85,4 +95,35 @@ frappe.router.on('change', () => {
 window.open_correspond_file = function(file_number, source) {
     sessionStorage.setItem('correspond_source', source);
     frappe.set_route('correspond-file', file_number);
+};
+
+
+window.prompt_pull_back = function(file_number) {
+    frappe.prompt([
+        {
+            fieldname: 'reason',
+            fieldtype: 'Small Text',
+            label: 'Pull Back Reason',
+            reqd: 1,
+            description: 'Provide an audit reason for recalling this file before recipient action.'
+        }
+    ], function(values) {
+        frappe.call({
+            method: 'correspond.correspond.doctype.correspond_file.correspond_file.pull_back_file',
+            args: {
+                file_name: file_number,
+                reason: values.reason
+            },
+            freeze: true,
+            freeze_message: __('Recalling file back to your desk...'),
+            callback: function(r) {
+                if (r && r.message && r.message.status === 'success') {
+                    frappe.show_alert({message: r.message.message, indicator: 'green'});
+                    if (frappe.query_report) {
+                        frappe.query_report.refresh();
+                    }
+                }
+            }
+        });
+    }, __('Pull Back File: {0}', [file_number]), __('Confirm Pull Back'));
 };

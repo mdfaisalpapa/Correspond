@@ -83,6 +83,11 @@ frappe.query_reports["File Inbox"] = {
                     </a>`;
         }
 
+        if (column.fieldname === "status" && data) {
+            let s_cls = data.status === "Parked" ? "badge-warning" : "badge-success";
+            return `<span class="badge ${s_cls}" style="padding: 4px 6px; font-size: 11px;">${data.status || 'Active'}</span>`;
+        }
+
         if (column.fieldname === "attachments" && data) {
             if (data.attachments) {
                 let files = data.attachments.split(',');

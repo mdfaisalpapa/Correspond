@@ -9,9 +9,11 @@ def get_columns():
     return [
         {"fieldname": "file_number", "label": "File No", "fieldtype": "Data", "width": 220},
         {"fieldname": "subject", "label": "Subject", "fieldtype": "Data", "width": 300},
-        {"fieldname": "recipient_desk", "label": "Sent To", "fieldtype": "Data", "width": 300},
+        {"fieldname": "recipient_desk", "label": "Sent To", "fieldtype": "Data", "width": 250},
         {"fieldname": "timestamp", "label": "Sent On", "fieldtype": "Datetime", "width": 160},
-        {"fieldname": "currently_with", "label": "Currently With", "fieldtype": "Data", "width": 300},
+        {"fieldname": "currently_with", "label": "Currently With", "fieldtype": "Data", "width": 250},
+        {"fieldname": "is_opened", "label": "Opened By Recipient", "fieldtype": "Check", "width": 150},
+        {"fieldname": "can_pull_back", "label": "Can Pull Back", "fieldtype": "Check", "width": 120},
         {"fieldname": "remarks", "label": "Remarks", "fieldtype": "Data", "width": 250}
     ]
 
@@ -31,6 +33,14 @@ def get_data(filters):
             CONCAT(IFNULL(ru.full_name, rdesk.user), ' - ', IFNULL(rdesk.desk_title, rdesk.name)) AS recipient_desk,
             log.timestamp,
             CONCAT(IFNULL(cu.full_name, cdesk.user), ' - ', IFNULL(cdesk.desk_title, cdesk.name)) AS currently_with,
+            ifnull(log.is_opened, 0) AS is_opened,
+            CASE 
+                WHEN log.action = 'Forwarded' 
+                     AND ifnull(log.is_opened, 0) = 0 
+                     AND file.current_custodian = log.recipient_desk 
+                THEN 1 
+                ELSE 0 
+            END AS can_pull_back,
             log.remarks
         FROM `tabFile Movement Log` log
         LEFT JOIN `tabCorrespond File` file ON log.parent = file.name

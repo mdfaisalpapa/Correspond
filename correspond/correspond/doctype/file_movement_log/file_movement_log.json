@@ -13,7 +13,9 @@
   "moved_to",
   "recipient_desk",
   "action",
-  "remarks"
+  "remarks",
+  "is_opened",
+  "opened_on"
  ],
  "fields": [
   {
@@ -44,7 +46,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Action",
-   "options": "Forwarded\nPulled\nReturned\nAttached\nDetached",
+   "options": "Forwarded\nPulled\nPulled Back\nReturned\nAttached\nDetached\nParked\nUnparked",
    "read_only": 1
   },
   {
@@ -68,6 +70,20 @@
    "in_list_view": 1,
    "label": "Recipient Desk",
    "options": "Correspond Desk Profile",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_opened",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Opened",
+   "read_only": 1
+  },
+  {
+   "fieldname": "opened_on",
+   "fieldtype": "Datetime",
+   "label": "Opened On",
    "read_only": 1
   }
  ],

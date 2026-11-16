@@ -245,6 +245,9 @@ frappe.ui.form.on('Correspond File', {
             $(frm.wrapper).on('click', '.custom-send-back-btn', function(e) { e.preventDefault(); trigger_send_back_dialog(frm); });
             $(frm.wrapper).on('click', '.custom-add-inward-btn', function(e) { e.preventDefault(); trigger_add_inward(frm); });
             $(frm.wrapper).on('click', '.custom-create-outward-btn', function(e) { e.preventDefault(); create_outward_dak_inline(frm); });
+            $(frm.wrapper).on('click', '.custom-park-btn', function(e) { e.preventDefault(); trigger_park_dialog(frm); });
+            $(frm.wrapper).on('click', '.custom-unpark-btn', function(e) { e.preventDefault(); trigger_unpark_dialog(frm); });
+            $(frm.wrapper).on('click', '.custom-flag-btn', function(e) { e.preventDefault(); show_flag_management_dialog(frm); });
 
             $(frm.wrapper).on('click', 'a', function(e) { 
                 let href = $(this).attr('href'); 
@@ -304,7 +307,14 @@ frappe.ui.form.on('Correspond File', {
         frm.eoffice_active_tab = frm.eoffice_active_tab || '#tab-toc';
         
         make_eoffice_full_width(frm);
-        if (!frm.is_new()) load_eoffice_data(frm); 
+        if (!frm.is_new()) {
+            load_eoffice_data(frm);
+            // Auto mark file as opened by recipient for audit & pull back tracking
+            frappe.call({
+                method: 'correspond.correspond.doctype.correspond_file.correspond_file.mark_file_opened',
+                args: { file_name: frm.doc.name }
+            });
+        }
     },
 
     file_owner: function(frm) {
@@ -982,4 +992,205 @@ if (!$('#correspond-full-width-css').length) {
 // =========================================================================
 if (!$('#dialog-dropdown-fix-css').length) {
     $('head').append(`<style id="dialog-dropdown-fix-css"> .modal-content .awesomplete > ul { z-index: 10550 !important; } </style>`);
+}
+
+
+// =========================================================================
+// SPRINT 1: PARK, UNPARK & REFERENCING FLAG DIALOGS
+// =========================================================================
+function trigger_park_dialog(frm) {
+    let d = new frappe.ui.Dialog({
+        title: '<i class="fa fa-pause text-warning"></i> Park File',
+        fields: [
+            {
+                fieldname: 'park_reason',
+                fieldtype: 'Select',
+                label: 'Reason Category',
+                options: 'Awaiting External Information\nAwaiting Audit Query Response\nAwaiting Legal/Court Opinion\nUnder Inter-Departmental Deliberation\nOther',
+                reqd: 1
+            },
+            {
+                fieldname: 'park_remarks',
+                fieldtype: 'Small Text',
+                label: 'Specific Remarks',
+                reqd: 1
+            },
+            {
+                fieldname: 'parked_until',
+                fieldtype: 'Date',
+                label: 'Park Until Date (Optional Review Date)'
+            }
+        ],
+        primary_action_label: 'Park File',
+        primary_action_classes: 'btn-warning',
+        primary_action(values) {
+            let combined_reason = `[${values.park_reason}] ${values.park_remarks}`;
+            frappe.call({
+                method: 'correspond.correspond.doctype.correspond_file.correspond_file.park_file',
+                args: {
+                    file_name: frm.doc.name,
+                    reason: combined_reason,
+                    parked_until: values.parked_until
+                },
+                freeze: true,
+                callback: function(r) {
+                    if (!r.exc) {
+                        d.hide();
+                        frappe.show_alert({message: __('File successfully parked.'), indicator: 'orange'});
+                        load_eoffice_data(frm);
+                        frm.reload_doc();
+                    }
+                }
+            });
+        }
+    });
+    d.show();
+}
+
+function trigger_unpark_dialog(frm) {
+    let d = new frappe.ui.Dialog({
+        title: '<i class="fa fa-play text-info"></i> Resume / Unpark File',
+        fields: [
+            {
+                fieldname: 'remarks',
+                fieldtype: 'Small Text',
+                label: 'Resumption Remarks',
+                reqd: 1,
+                default: 'Information received; resuming active processing.'
+            }
+        ],
+        primary_action_label: 'Resume Processing',
+        primary_action_classes: 'btn-info',
+        primary_action(values) {
+            frappe.call({
+                method: 'correspond.correspond.doctype.correspond_file.correspond_file.unpark_file',
+                args: {
+                    file_name: frm.doc.name,
+                    remarks: values.remarks
+                },
+                freeze: true,
+                callback: function(r) {
+                    if (!r.exc) {
+                        d.hide();
+                        frappe.show_alert({message: __('File resumed to Active status.'), indicator: 'green'});
+                        load_eoffice_data(frm);
+                        frm.reload_doc();
+                    }
+                }
+            });
+        }
+    });
+    d.show();
+}
+
+function show_flag_management_dialog(frm) {
+    frappe.call({
+        method: 'correspond.correspond.doctype.correspond_file.correspond_file.get_referencing_flags',
+        args: { file_name: frm.doc.name },
+        callback: function(r) {
+            let current_flags = r.message || {};
+            let rows_html = '';
+            
+            Object.keys(current_flags).sort().forEach(flagKey => {
+                let f = current_flags[flagKey];
+                rows_html += `
+                    <tr>
+                        <td><span class="badge badge-warning font-weight-bold">${f.flag_letter}</span></td>
+                        <td>${f.document_type}</td>
+                        <td><b>${f.document_name}</b></td>
+                        <td>Page ${f.page_no || 1}</td>
+                        <td>${f.remarks || ''}</td>
+                    </tr>
+                `;
+            });
+
+            if (!rows_html) {
+                rows_html = `<tr><td colspan="5" class="text-center text-muted">No reference flags tagged on this file yet.</td></tr>`;
+            }
+
+            let d = new frappe.ui.Dialog({
+                title: '<i class="fa fa-tag text-warning"></i> Reference Flags (Flag A - Z)',
+                size: 'large',
+                fields: [
+                    {
+                        fieldname: 'existing_flags_html',
+                        fieldtype: 'HTML',
+                        options: `
+                            <div style="margin-bottom: 15px;">
+                                <table class="table table-bordered table-sm" style="font-size: 13px;">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Flag</th>
+                                            <th>DocType</th>
+                                            <th>Document / Ref</th>
+                                            <th>Page</th>
+                                            <th>Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${rows_html}</tbody>
+                                </table>
+                            </div>
+                        `
+                    },
+                    { fieldtype: 'Section Break', label: 'Tag New Reference Flag' },
+                    {
+                        fieldname: 'flag_letter',
+                        fieldtype: 'Select',
+                        label: 'Flag Identifier',
+                        options: 'A\nB\nC\nD\nE\nF\nG\nH\nI\nJ\nK\nL\nM\nN\nO\nP\nQ\nR\nS\nT\nU\nV\nW\nX\nY\nZ',
+                        default: 'A',
+                        reqd: 1
+                    },
+                    {
+                        fieldname: 'document_type',
+                        fieldtype: 'Select',
+                        label: 'Document Type',
+                        options: 'Inward Dak\nOutward Dak\nCorrespond File',
+                        default: 'Inward Dak',
+                        reqd: 1
+                    },
+                    {
+                        fieldname: 'document_name',
+                        fieldtype: 'Data',
+                        label: 'Document Name / Reference ID',
+                        reqd: 1
+                    },
+                    {
+                        fieldname: 'page_no',
+                        fieldtype: 'Int',
+                        label: 'Target Page Number',
+                        default: 1
+                    },
+                    {
+                        fieldname: 'remarks',
+                        fieldtype: 'Small Text',
+                        label: 'Tag Description / Annotation'
+                    }
+                ],
+                primary_action_label: 'Save Reference Flag',
+                primary_action(values) {
+                    frappe.call({
+                        method: 'correspond.correspond.doctype.correspond_file.correspond_file.save_referencing_flag',
+                        args: {
+                            file_name: frm.doc.name,
+                            flag_letter: values.flag_letter,
+                            document_type: values.document_type,
+                            document_name: values.document_name,
+                            page_no: values.page_no,
+                            remarks: values.remarks
+                        },
+                        freeze: true,
+                        callback: function(res) {
+                            if (!res.exc) {
+                                d.hide();
+                                frappe.show_alert({message: __('Reference flag saved.'), indicator: 'green'});
+                                load_eoffice_data(frm);
+                            }
+                        }
+                    });
+                }
+            });
+            d.show();
+        }
+    });
 }
