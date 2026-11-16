@@ -1,0 +1,33 @@
+{
+ "add_total_row": 0,
+ "columns": [],
+ "creation": "2026-11-16 13:45:00.000000",
+ "disable_prepared_report": 0,
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": "",
+ "modified": "2026-11-16 13:45:00.000000",
+ "modified_by": "Administrator",
+ "module": "Correspond",
+ "name": "VIP Reference Tracker",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "Inward Dak",
+ "report_name": "VIP Reference Tracker",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Correspond User"
+  },
+  {
+   "role": "Correspond Registry Clerk"
+  }
+ ]
+}

@@ -29,7 +29,11 @@
   "recipient",
   "remarks",
   "linked_files",
-  "status"
+  "status",
+  "is_vip_reference",
+  "vip_type",
+  "sla_due_date",
+  "barcode_image"
  ],
  "fields": [
   {
@@ -164,6 +168,35 @@
    "fieldtype": "Link",
    "label": "Recipient",
    "options": "Correspond Desk Profile"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_vip_reference",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is VIP / Parliament Reference"
+  },
+  {
+   "depends_on": "eval:doc.is_vip_reference == 1",
+   "fieldname": "vip_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "VIP Category",
+   "options": "PMO Reference\nCabinet Secretariat\nParliament Question (Starred/Unstarred)\nMP / MLA Reference\nCourt Notice / Summons\nNational Commission"
+  },
+  {
+   "depends_on": "eval:doc.is_vip_reference == 1",
+   "fieldname": "sla_due_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "SLA Target Date"
+  },
+  {
+   "fieldname": "barcode_image",
+   "fieldtype": "Attach Image",
+   "label": "Docket QR / Barcode",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

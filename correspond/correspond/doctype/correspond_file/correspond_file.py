@@ -7,10 +7,20 @@ import json
 import re
 
 def get_user_active_desks(user):
-    """Returns a list of active desk profile names assigned to the user"""
-    return frappe.get_all("Correspond Desk Profile", 
-                          filters={"user": user, "is_abolished": 0, "disabled": 0}, 
-                          pluck="name")
+    """Returns a list of active desk profile names assigned to the user, including active delegated desks."""
+    direct_desks = frappe.get_all("Correspond Desk Profile", 
+                                  filters={"user": user, "is_abolished": 0, "disabled": 0}, 
+                                  pluck="name")
+    
+    # Check for active delegation rules (Link Officer)
+    delegated = []
+    try:
+        from correspond.correspond.doctype.correspond_delegation_rule.correspond_delegation_rule import get_active_delegated_desks
+        delegated = get_active_delegated_desks(user)
+    except Exception:
+        delegated = []
+
+    return list(set(direct_desks + delegated))
 
 @frappe.whitelist()
 def is_user_custodian(file_name):
