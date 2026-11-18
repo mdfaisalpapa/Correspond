@@ -32,45 +32,63 @@ class IntegrationTestCorrespondFile(IntegrationTestCase):
         frappe.set_user("Administrator")
         self.cleanup_test_records()
 
+        dept = frappe.db.get_value("Department", {"department_name": "Accounts"}) or "Accounts - _TC"
+
+        # Create Designations if needed
+        for d in ["Section Officer", "Assistant"]:
+            if not frappe.db.exists("Designation", d):
+                frappe.get_doc({"doctype": "Designation", "designation_name": d}).insert(ignore_permissions=True)
+
         # Create Office & Section
-        if not frappe.db.exists("Correspond Office", "TEST-OFFICE"):
+        if not frappe.db.exists("Correspond Office", "TO"):
             frappe.get_doc({
                 "doctype": "Correspond Office",
                 "office_name": "Test Office",
                 "office_abbr": "TO"
             }).insert(ignore_permissions=True)
 
-        if not frappe.db.exists("Correspond Section", "TEST-SEC"):
+        if not frappe.db.exists("Correspond Section", "Accounts-TSEC"):
             frappe.get_doc({
                 "doctype": "Correspond Section",
                 "section_name": "Test Section",
-                "section_abbr": "TSEC"
+                "section_abbr": "TSEC",
+                "department": dept
             }).insert(ignore_permissions=True)
+
+        # Create test users if needed
+        for email, name in [("test_so@example.com", "Test SO"), ("test_asst@example.com", "Test Asst")]:
+            if not frappe.db.exists("User", email):
+                frappe.get_doc({
+                    "doctype": "User",
+                    "email": email,
+                    "first_name": name,
+                    "roles": [{"role": "Correspond User"}]
+                }).insert(ignore_permissions=True)
 
         # Create 2 Desk Profiles for routing
-        self.desk_1 = "TEST-DESK-SO"
-        if not frappe.db.exists("Correspond Desk Profile", self.desk_1):
-            frappe.get_doc({
+        self.desk_1 = frappe.db.get_value("Correspond Desk Profile", {"user": "test_so@example.com"}, "name")
+        if not self.desk_1:
+            d1 = frappe.get_doc({
                 "doctype": "Correspond Desk Profile",
-                "desk_name": self.desk_1,
-                "desk_title": "Section Officer 1",
-                "user": "Administrator",
-                "office": "TEST-OFFICE",
-                "section": "TEST-SEC",
+                "user": "test_so@example.com",
+                "office": "TO",
+                "department": dept,
+                "section": "Accounts-TSEC",
                 "designation": "Section Officer"
             }).insert(ignore_permissions=True)
+            self.desk_1 = d1.name
 
-        self.desk_2 = "TEST-DESK-ASST"
-        if not frappe.db.exists("Correspond Desk Profile", self.desk_2):
-            frappe.get_doc({
+        self.desk_2 = frappe.db.get_value("Correspond Desk Profile", {"user": "test_asst@example.com"}, "name")
+        if not self.desk_2:
+            d2 = frappe.get_doc({
                 "doctype": "Correspond Desk Profile",
-                "desk_name": self.desk_2,
-                "desk_title": "Assistant 1",
-                "user": "Administrator",
-                "office": "TEST-OFFICE",
-                "section": "TEST-SEC",
+                "user": "test_asst@example.com",
+                "office": "TO",
+                "department": dept,
+                "section": "Accounts-TSEC",
                 "designation": "Assistant"
             }).insert(ignore_permissions=True)
+            self.desk_2 = d2.name
 
     def tearDown(self):
         self.cleanup_test_records()

@@ -21,53 +21,76 @@ class IntegrationTestInwardDak(IntegrationTestCase):
         frappe.set_user("Administrator")
         self.cleanup_test_records()
 
+        dept = frappe.db.get_value("Department", {"department_name": "Accounts"}) or "Accounts - _TC"
+
+        # Create Designations if needed
+        for d in ["Director", "Deputy Secretary"]:
+            if not frappe.db.exists("Designation", d):
+                frappe.get_doc({"doctype": "Designation", "designation_name": d}).insert(ignore_permissions=True)
+
         # Create Test Office & Section
-        if not frappe.db.exists("Correspond Office", "TEST-OFFICE"):
+        if not frappe.db.exists("Correspond Office", "TO"):
             frappe.get_doc({
                 "doctype": "Correspond Office",
                 "office_name": "Test Office",
                 "office_abbr": "TO"
             }).insert(ignore_permissions=True)
 
-        if not frappe.db.exists("Correspond Section", "TEST-SEC"):
+        if not frappe.db.exists("Correspond Section", "Accounts-TSEC"):
             frappe.get_doc({
                 "doctype": "Correspond Section",
                 "section_name": "Test Section",
-                "section_abbr": "TSEC"
+                "section_abbr": "TSEC",
+                "department": dept
             }).insert(ignore_permissions=True)
+
+        # Create test users if needed
+        for email, name in [("test_dir@example.com", "Test Director"), ("test_ds@example.com", "Test DS")]:
+            if not frappe.db.exists("User", email):
+                frappe.get_doc({
+                    "doctype": "User",
+                    "email": email,
+                    "first_name": name,
+                    "roles": [{"role": "Correspond User"}]
+                }).insert(ignore_permissions=True)
 
         # Create two Desk Profiles for delegation testing
-        self.primary_desk = "TEST-DESK-PRIMARY"
-        if not frappe.db.exists("Correspond Desk Profile", self.primary_desk):
-            frappe.get_doc({
+        self.primary_desk = frappe.db.get_value("Correspond Desk Profile", {"user": "test_dir@example.com"}, "name")
+        if not self.primary_desk:
+            d1 = frappe.get_doc({
                 "doctype": "Correspond Desk Profile",
-                "desk_name": self.primary_desk,
-                "desk_title": "Primary Officer",
-                "user": "Administrator",
-                "office": "TEST-OFFICE",
-                "section": "TEST-SEC",
+                "user": "test_dir@example.com",
+                "office": "TO",
+                "department": dept,
+                "section": "Accounts-TSEC",
                 "designation": "Director"
             }).insert(ignore_permissions=True)
+            self.primary_desk = d1.name
 
-        self.delegate_desk = "TEST-DESK-DELEGATE"
-        if not frappe.db.exists("Correspond Desk Profile", self.delegate_desk):
-            frappe.get_doc({
+        self.delegate_desk = frappe.db.get_value("Correspond Desk Profile", {"user": "test_ds@example.com"}, "name")
+        if not self.delegate_desk:
+            d2 = frappe.get_doc({
                 "doctype": "Correspond Desk Profile",
-                "desk_name": self.delegate_desk,
-                "desk_title": "Link Officer",
-                "user": "Administrator",
-                "office": "TEST-OFFICE",
-                "section": "TEST-SEC",
+                "user": "test_ds@example.com",
+                "office": "TO",
+                "department": dept,
+                "section": "Accounts-TSEC",
                 "designation": "Deputy Secretary"
             }).insert(ignore_permissions=True)
+            self.delegate_desk = d2.name
 
     def tearDown(self):
         self.cleanup_test_records()
 
     def cleanup_test_records(self):
-        for dak in frappe.get_all("Inward Dak", filters={"subject": ["like", "Test Sprint 3%"]}, pluck="name"):
-            frappe.delete_doc("Inward Dak", dak, force=1, ignore_permissions=True)
-        for rule in frappe.get_all("Correspond Delegation Rule", filters={"desk": "TEST-DESK-PRIMARY"}, pluck="name"):
+        for dak in frappe.get_all("Inward Dak", filters={"subject": ["like", "Test Sprint 3%"]}, fields=["name", "docstatus"]):
+            if dak.docstatus == 1:
+                try:
+                    frappe.get_doc("Inward Dak", dak.name).cancel()
+                except Exception:
+                    pass
+            frappe.delete_doc("Inward Dak", dak.name, force=1, ignore_permissions=True)
+        for rule in frappe.get_all("Correspond Delegation Rule", filters={"desk": getattr(self, "primary_desk", "TEST-DESK-PRIMARY")}, pluck="name"):
             frappe.delete_doc("Correspond Delegation Rule", rule, force=1, ignore_permissions=True)
 
     def test_link_officer_delegation(self):
@@ -81,7 +104,7 @@ class IntegrationTestInwardDak(IntegrationTestCase):
         rule.delegation_reason = "Official Deputation to State HQ"
         rule.insert(ignore_permissions=True)
 
-        active_desks = get_active_delegated_desks("Administrator")
+        active_desks = get_active_delegated_desks("test_ds@example.com")
         self.assertIn(self.primary_desk, active_desks)
 
     def test_duplicate_receipt_detection(self):

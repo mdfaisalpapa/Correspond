@@ -1,0 +1,23 @@
+{
+ "app": "correspond",
+ "creation": "2026-11-18 05:33:11.632594",
+ "docstatus": 0,
+ "doctype": "Dock",
+ "idx": 0,
+ "items": [
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "inbox-soft",
+   "link_to": "Correspond",
+   "link_type": "Sidebar",
+   "title": "Correspond"
+  }
+ ],
+ "modified": "2026-11-18 05:33:11.632594",
+ "modified_by": "Administrator",
+ "name": "correspond",
+ "owner": "Administrator",
+ "standard": 1,
+ "user": ""
+}

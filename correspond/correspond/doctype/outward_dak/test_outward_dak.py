@@ -23,39 +23,55 @@ class IntegrationTestOutwardDak(IntegrationTestCase):
         frappe.set_user("Administrator")
         self.cleanup_test_records()
 
+        dept = frappe.db.get_value("Department", {"department_name": "Accounts"}) or "Accounts - _TC"
+
+        # Create Designations if needed
+        if not frappe.db.exists("Designation", "Section Officer"):
+            frappe.get_doc({"doctype": "Designation", "designation_name": "Section Officer"}).insert(ignore_permissions=True)
+
         # Create Test Office & Section if needed
-        if not frappe.db.exists("Correspond Office", "TEST-OFFICE"):
+        if not frappe.db.exists("Correspond Office", "TO"):
             frappe.get_doc({
                 "doctype": "Correspond Office",
                 "office_name": "Test Office",
                 "office_abbr": "TO"
             }).insert(ignore_permissions=True)
 
-        if not frappe.db.exists("Correspond Section", "TEST-SEC"):
+        if not frappe.db.exists("Correspond Section", "Accounts-TSEC"):
             frappe.get_doc({
                 "doctype": "Correspond Section",
                 "section_name": "Test Section",
-                "section_abbr": "ADM"
+                "section_abbr": "TSEC",
+                "department": dept
             }).insert(ignore_permissions=True)
 
-        if not frappe.db.exists("Correspond Desk Profile", "TEST-DESK-SO"):
+        if not frappe.db.exists("User", "test_so@example.com"):
             frappe.get_doc({
+                "doctype": "User",
+                "email": "test_so@example.com",
+                "first_name": "Test SO",
+                "roles": [{"role": "Correspond User"}]
+            }).insert(ignore_permissions=True)
+
+        self.desk_so = frappe.db.get_value("Correspond Desk Profile", {"user": "test_so@example.com"}, "name")
+        if not self.desk_so:
+            d = frappe.get_doc({
                 "doctype": "Correspond Desk Profile",
-                "desk_name": "TEST-DESK-SO",
-                "desk_title": "Section Officer 1",
-                "user": "Administrator",
-                "office": "TEST-OFFICE",
-                "section": "TEST-SEC",
+                "user": "test_so@example.com",
+                "office": "TO",
+                "department": dept,
+                "section": "Accounts-TSEC",
                 "designation": "Section Officer"
             }).insert(ignore_permissions=True)
+            self.desk_so = d.name
 
         # Create master test file
         self.test_file = frappe.new_doc("Correspond File")
         self.test_file.subject = "File for DFA Testing"
         self.test_file.description = "DFA testing file"
-        self.test_file.file_owner = "TEST-DESK-SO"
-        self.test_file.current_custodian = "TEST-DESK-SO"
-        self.test_file.desk_section = "ADM"
+        self.test_file.file_owner = self.desk_so
+        self.test_file.current_custodian = self.desk_so
+        self.test_file.desk_section = "Accounts-TSEC"
         self.test_file.insert(ignore_permissions=True)
 
     def tearDown(self):
@@ -84,7 +100,7 @@ class IntegrationTestOutwardDak(IntegrationTestCase):
         dak = frappe.new_doc("Outward Dak")
         dak.subject = "Test DFA Sanction of Equipment"
         dak.primary_file = self.test_file.name
-        dak.sender = "TEST-DESK-SO"
+        dak.sender = self.desk_so
         dak.dfa_type = "Sanction Order"
         dak.recipient_type = "External User"
         dak.receiver = "Vendor ABC"
@@ -112,7 +128,7 @@ class IntegrationTestOutwardDak(IntegrationTestCase):
         self.assertEqual(disp_res["status"], "success")
         dispatch_no = disp_res["dispatch_no"]
         self.assertTrue(len(dispatch_no) > 0)
-        self.assertIn("ADM/OUT", dispatch_no)
+        self.assertIn("/OUT/", dispatch_no)
 
         dak_doc = frappe.get_doc("Outward Dak", dak_name)
         self.assertEqual(dak_doc.status, "Marked for Dispatch")

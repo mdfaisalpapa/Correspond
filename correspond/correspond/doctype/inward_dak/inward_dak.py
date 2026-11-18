@@ -15,10 +15,13 @@ class InwardDak(Document):
         if not self.status:
             self.status = "Draft"
 
-    def on_submit(self):
+    def before_submit(self):
         if self.status == "Draft":
             self.status = "Diarized"
         self.generate_qr_docket()
+
+    def on_submit(self):
+        pass
 
     def check_duplicate_receipt(self):
         """
@@ -81,7 +84,7 @@ def print_docket_label(dak_name):
     doc = frappe.get_doc("Inward Dak", dak_name)
     if not doc.barcode_image:
         doc.generate_qr_docket()
-        doc.save(ignore_permissions=True)
+        frappe.db.set_value("Inward Dak", doc.name, "barcode_image", doc.barcode_image, update_modified=False)
 
     vip_badge = f"<div style='font-size: 9px; color: red; font-weight: bold;'>⚠️ {doc.vip_type} | Due: {doc.sla_due_date}</div>" if doc.is_vip_reference else ""
 

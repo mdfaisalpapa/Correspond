@@ -1,0 +1,16 @@
+{
+ "creation": "2026-11-18 05:30:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "inbox",
+ "idx": 1,
+ "modified": "2026-11-18 05:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Correspond",
+ "name": "correspond_console",
+ "owner": "Administrator",
+ "page_name": "correspond_console",
+ "roles": [],
+ "standard": "Yes",
+ "title": "Desk Console"
+}

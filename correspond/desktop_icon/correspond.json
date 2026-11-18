@@ -1,0 +1,21 @@
+{
+ "name": "Correspond",
+ "docstatus": 0,
+ "idx": 1,
+ "label": "Correspond",
+ "icon_type": "Link",
+ "link_type": "Workspace Sidebar",
+ "link_to": "Correspond",
+ "parent_icon": "",
+ "sidebar": null,
+ "icon_image": null,
+ "standard": 1,
+ "app": "correspond",
+ "icon": "mail",
+ "logo_url": "/assets/correspond/correspond_logo.png",
+ "link": null,
+ "hidden": 0,
+ "restrict_removal": 0,
+ "bg_color": "gray",
+ "doctype": "Desktop Icon"
+}

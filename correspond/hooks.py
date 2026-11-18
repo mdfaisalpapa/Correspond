@@ -314,7 +314,7 @@ add_to_apps_screen = [
         "name": "correspond",
         "logo": "/assets/correspond/correspond_logo.png",
         "title": "Correspond",
-        "route": "/desk",
+        "route": "/desk/correspond",
     }
 ]
 
